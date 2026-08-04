@@ -22,14 +22,32 @@ def get_button_press():
         return "Play"
     elif data == 'Discard':
         return "Discard"
-    
+    time.sleep(0.01)
+
+# Waits for arduino as to not cause serial issues
+def wait_for_arduino():
+    # Blocks Python script from progressing until Arduino finishes moving
+    while True:
+        response = arduino.readline().decode('utf-8').strip()
+        if response == "DONE":
+            break
+        # If player presses Play/Discard during scoring
+        elif response in ["Play", "Discard"]:
+            pass 
+
+# Tell arduino to start the scoring phase
+def start_scoring_phase():
+    command = "START SCORING\n"
+    arduino.write(command.encode('utf-8'))
+    wait_for_arduino() # Wait for the Arduino to reset its timer and reply "DONE"
+
 def activate_scored_card(card_num):
         # Map index 0->4, 1->3, 2->2, 3->1, 4->0
-        servo_num = 4 - card_num  
+        servo_num = card_num  
         # Send the serial command and move on immediately
         command = f"TILT CARD " + str(servo_num + 1) + "\n"
         arduino.write(command.encode('utf-8'))
-        print(f"Sent command: {command.strip()}")
+        wait_for_arduino()
 
 def activate_joker(joker_num):
         # Map index 0->4, 1->3, 2->2, 3->1, 4->0
@@ -37,4 +55,4 @@ def activate_joker(joker_num):
         # Send the serial command and move on immediately
         command = f"TILT JOKER " + str(servo_num + 1) + "\n"
         arduino.write(command.encode('utf-8'))
-        print(f"Sent command: {command.strip()}")
+        wait_for_arduino()
