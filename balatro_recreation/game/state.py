@@ -5,7 +5,7 @@ from game.jokers import CrazyJoker, WilyJoker, CleverJoker, HalfJoker, Banner, L
 from game.jokers import Misprint, Dusk, Blueprint, Brainstorm, JokerStencil, Fibonacci
 from game.jokers import Shortcut, FourFingers, ScaryFace, AbstractJoker, DelayedGratification
 from game.jokers import Supernova, RideTheBus, SpaceJoker, GreenJoker, ToDoList, SquareJoker
-from game.jokers import Rocket, Obelisk
+from game.jokers import Rocket, Obelisk, Photograph, HangingChad, MrBones, GrosMichel
 
 # Game state enumeration
 class GameState(IntEnum):
@@ -50,6 +50,7 @@ HAND_TYPE = None
 IS_HAND = ["None", "None"]
 PLAYED_CARDS = None
 SCORED_CARDS = None
+CARD_ORDER = 0
 NUM_CARDS = 0
 CARD_RANK = None
 CARD_SUIT = None
@@ -61,12 +62,13 @@ STARTING_MONEY = 4
 MONEY = 0
 MONEY_GAIN = 0
 INPUT = None
+BONED = False
 ETERNAL_CHANCE = 0.0
 PERISHABLE_CHANCE = 0.0
 RENTAL_CHANCE = 0.0
 ANTE = 1
 MAX_JOKER_SLOTS = 5
-JOKERS = [Blueprint(), Blueprint(), Obelisk(), ToDoList(), Hack()]  # List of active jokers in the game
+JOKERS = [Hack(), GluttonousJoker(), Brainstorm(), Misprint(), RideTheBus()]  # List of active jokers in the game
 OOPS_ALL_SIXES = 0
 FILLED_JOKER_SLOTS = len(JOKERS)
 RETRIGGERS = 0

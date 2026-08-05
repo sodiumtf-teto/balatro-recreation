@@ -1,5 +1,6 @@
 import os
 import requests, cv2, time, serial
+from utils import format_balatro_number
 from game import state
 import numpy as np
 from enum import IntEnum
@@ -12,10 +13,11 @@ from game.decks import next_deck, apply_deck
 from game.stakes import next_stake, apply_stake
 from game.blinds import calculate_blinds
 from game.scoring import evaluate_hand
-from game.jokers import trigger_jokers
+from game.jokers import trigger_jokers, joker_check, MrBones
 
 IMAGE_PATH = "hardware/board.jpg"
 WEIGHTS_PATH = "hardware/weights/poker_best.pt"
+VIDEO_INDEX = 0
 
 def run_game(detector):
     while True:
@@ -56,15 +58,15 @@ def run_game(detector):
             if state.CURRENT_BLIND == "small":
                 state.SCORE_TARGET = state.SMALL_BLIND_SCORE
                 state.CURRENT_BLIND_MONEY = state.SMALL_BLIND_MONEY
-                print(f"Small Blind: {state.SMALL_BLIND_MONEY} money, {state.SMALL_BLIND_SCORE} score to beat\n")
+                print(f"Small Blind: {state.SMALL_BLIND_MONEY} money, {format_balatro_number(state.SMALL_BLIND_SCORE)} score to beat\n")
             elif state.CURRENT_BLIND == "big":
                 state.SCORE_TARGET = state.BIG_BLIND_SCORE
                 state.CURRENT_BLIND_MONEY = state.BIG_BLIND_MONEY
-                print(f"Big Blind: {state.BIG_BLIND_MONEY} money, {state.BIG_BLIND_SCORE} score to beat\n")
+                print(f"Big Blind: {state.BIG_BLIND_MONEY} money, {format_balatro_number(state.BIG_BLIND_SCORE)} score to beat\n")
             elif state.CURRENT_BLIND == "boss":
                 state.SCORE_TARGET = state.BOSS_BLIND_SCORE
                 state.CURRENT_BLIND_MONEY = state.BOSS_BLIND_MONEY
-                print(f"Boss Blind: {state.BOSS_BLIND_MONEY} money, {state.BOSS_BLIND_SCORE} score to beat\n")
+                print(f"Boss Blind: {state.BOSS_BLIND_MONEY} money, {format_balatro_number(state.BOSS_BLIND_SCORE)} score to beat\n")
             while(state.INPUT == None or (state.CURRENT_BLIND == "boss" and state.INPUT == "Discard")):
                 state.INPUT = get_button_press()
             if state.INPUT == "Play":
@@ -84,7 +86,7 @@ def run_game(detector):
                         state.HANDS -= 1
                         print(f"Hands Remaining: {state.HANDS}")
                         print("Snapping photo of the board...")
-                        capture_image(IMAGE_PATH, camera_index=4)
+                        capture_image(IMAGE_PATH, camera_index=VIDEO_INDEX)
                         # Detect the cards
                         state.PLAYED_CARDS = detector.detect(IMAGE_PATH) 
                         hand = format_cards(state.PLAYED_CARDS)
@@ -92,7 +94,7 @@ def run_game(detector):
                         # Evaluate and score
                         evaluate_hand(state.PLAYED_CARDS)
                         print(f"Hand Detected: {state.HAND_TYPE}")
-                        print(f"Hand Score: {state.SCORE}")
+                        print(f"Hand Score: {format_balatro_number(state.SCORE)}")
                         state.SCORE_SUM += state.SCORE
                         if state.SCORE_SUM >= state.SCORE_TARGET:
                             print("\n*** Blind Defeated! ***")
@@ -102,10 +104,17 @@ def run_game(detector):
                         else:
                             if(state.HANDS == 0 and state.SCORE_SUM < state.SCORE_TARGET):
                                 print("\n*** Blind Lost! ***")
-                                state.GAMESTATE = state.GameState.lose
+                                if joker_check(MrBones) and state.SCORE_SUM >= state.SCORE_TARGET / 4:
+                                    trigger_jokers("bones")
+                                    state.GAMESTATE = state.GameState.cash_out
+                                else:
+                                     state.GAMESTATE = state.GameState.lose
                             else: 
-                                print(f"\nRemaining Score Needed: {state.SCORE_TARGET - state.SCORE_SUM}")
+                                print(f"\nRemaining Score Needed: {format_balatro_number(state.SCORE_TARGET - state.SCORE_SUM)}")
                         state.INPUT = None 
+                    if state.BONED:
+                        state.BONED = False
+                        break
                     elif state.INPUT == "Discard":
                         if state.DISCARDS > 0:
                             state.DISCARDS -= 1
@@ -160,7 +169,7 @@ def run_game(detector):
                 state.ANTE += 1
         # Reset game state and variables on loss
         state.reset_game()
-
+        
 if __name__ == "__main__":
     init_serial()  # Initialize the serial connection to Arduino
     cv_detector = CardDetector(weights_path=WEIGHTS_PATH, conf=0.25)

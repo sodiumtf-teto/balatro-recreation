@@ -1,7 +1,7 @@
 from collections import Counter
 from game import state
-from game.jokers import Splash, FourFingers, Shortcut, Pareidolia, trigger_jokers
-from hardware.arduino_serial import activate_scored_card, start_scoring_phase
+from game.jokers import Splash, FourFingers, Shortcut, Pareidolia, trigger_jokers, joker_check
+from hardware.arduino_serial import activate_scored_card, start_scoring_phase, add_mult, add_chips
 
 RANK_VALUES = {
     '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
@@ -12,7 +12,7 @@ RANK_VALUES = {
 RANK_ORDER_HIGH = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
 # Ace-low ranking (Ace acts as 1)
 RANK_ORDER_LOW = {'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13}
-
+        
 def parse_card(card_str):
     if not card_str:
         return '', ''
@@ -36,8 +36,8 @@ def evaluate_hand(hand):
     rank_counts = Counter(ranks)
     suit_counts = Counter(suits)
     
-    has_four_fingers = any(isinstance(j, FourFingers) for j in state.JOKERS)
-    has_shortcut = any(isinstance(j, Shortcut) for j in state.JOKERS)
+    has_four_fingers = joker_check(FourFingers)
+    has_shortcut = joker_check(Shortcut)
 
     min_flush_cards = 4 if has_four_fingers else 5
     target_straight_len = 4 if has_four_fingers else 5
@@ -154,13 +154,13 @@ def evaluate_hand(hand):
     if 1 in rank_counts.values(): state.IS_HAND.append("High Card")
 
     # Mark scoring cards
-    state.SCOREDPCARDS = []
+    state.SCORED_CARDS = []
     if state.HAND_TYPE in ["Flush", "Straight", "Straight Flush"]:
-        scored_cards = hand
+        state.SCORED_CARDS = hand
     elif scoring_ranks:
-        scored_cards = [c for c, (r, s) in zip(hand, parsed) if r in scoring_ranks]
-        if state.HAND_TYPE == "High Card" and scored_cards:
-            scored_cards = [scored_cards[0]]
+        state.SCORED_CARDS = [c for c, (r, s) in zip(hand, parsed) if r in scoring_ranks]
+        if state.HAND_TYPE == "High Card" and state.SCORED_CARDS:
+            state.SCORED_CARDS = [state.SCORED_CARDS[0]]
 
     trigger_jokers("before_hand_played")
     trigger_jokers("before_hand_played_blueprint")
@@ -168,27 +168,32 @@ def evaluate_hand(hand):
     state.CHIPS, state.MULT = state.HAND_SCORES[state.HAND_TYPE]
     state.TIMES_PLAYED[state.HAND_TYPE] += 1
 
+    add_chips(0) 
+    add_mult(0)
+
     start_scoring_phase()
     
-    if Splash() in state.JOKERS and len(scored_cards) < len(hand):
-        scored_cards = hand
+    if joker_check(Splash):
+        state.SCORED_CARDS = hand
 
-    for card in scored_cards:
+    for card in state.SCORED_CARDS:
+        state.CARD_ORDER += 1
         r, s = parse_card(card)
         if not r:
             continue
-        state.CARD_RANK = r
+        state.CARD_RANK = r.upper()
         state.CARD_SUIT = s.upper()
-        if state.CARD_RANK in ["J", "Q", "K"] or Pareidolia in state.JOKERS:
+        if state.CARD_RANK in ["J", "Q", "K"] or joker_check(Pareidolia):
             state.IS_FACE = True
         else:
             state.IS_FACE = False
         card_num = hand.index(card)
         retrigger_joker = 0
         while state.RETRIGGERS >= 0:
+            add_chips(RANK_VALUES.get(r, 0))
             activate_scored_card(card_num)
-            state.CHIPS += RANK_VALUES.get(r, 0)
             trigger_jokers("on_card_score")
+            trigger_jokers("on_card_score_blueprint")
             state.RETRIGGERS -= 1
             while state.RETRIGGERS < 0 and retrigger_joker < state.FILLED_JOKER_SLOTS:
                 state.JOKERS[retrigger_joker].trigger("retriggers")
@@ -206,3 +211,4 @@ def evaluate_hand(hand):
     state.IS_HAND.clear()
     state.IS_HAND = ["None", "None"]
     state.NUM_CARDS = 0
+    state.CARD_ORDER = 0
