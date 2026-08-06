@@ -168,10 +168,9 @@ def evaluate_hand(hand):
     state.CHIPS, state.MULT = state.HAND_SCORES[state.HAND_TYPE]
     state.TIMES_PLAYED[state.HAND_TYPE] += 1
 
+    start_scoring_phase()
     add_chips(0) 
     add_mult(0)
-
-    start_scoring_phase()
     
     if joker_check(Splash):
         state.SCORED_CARDS = hand

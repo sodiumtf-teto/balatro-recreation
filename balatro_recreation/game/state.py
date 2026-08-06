@@ -5,7 +5,10 @@ from game.jokers import CrazyJoker, WilyJoker, CleverJoker, HalfJoker, Banner, L
 from game.jokers import Misprint, Dusk, Blueprint, Brainstorm, JokerStencil, Fibonacci
 from game.jokers import Shortcut, FourFingers, ScaryFace, AbstractJoker, DelayedGratification
 from game.jokers import Supernova, RideTheBus, SpaceJoker, GreenJoker, ToDoList, SquareJoker
-from game.jokers import Rocket, Obelisk, Photograph, HangingChad, MrBones, GrosMichel
+from game.jokers import Rocket, Obelisk, Photograph, HangingChad, MrBones, GrosMichel, Cavendish
+from game.jokers import CardSharp, Madness, ToTheMoon, GoldenJoker, BaseballCard, Burglar, Bull
+from game.jokers import Popcorn, IceCream, SpareTrousers, AncientJoker, WalkieTalkie, Seltzer
+from game.jokers import Throwback, RoughGem, Arrowhead, Bloodstone, OnyxAgate
 
 # Game state enumeration
 class GameState(IntEnum):
@@ -27,6 +30,7 @@ CHIPS = 0
 MULT = 0
 SCORE = 0
 SCORE_SUM = 0
+SCORE_SCALING = 0
 SCORE_TARGET = 0
 SMALL_BLIND_SCORE = 0
 BIG_BLIND_SCORE = 0
@@ -68,11 +72,12 @@ PERISHABLE_CHANCE = 0.0
 RENTAL_CHANCE = 0.0
 ANTE = 1
 MAX_JOKER_SLOTS = 5
-JOKERS = [Hack(), GluttonousJoker(), Brainstorm(), Misprint(), RideTheBus()]  # List of active jokers in the game
+JOKERS = [Arrowhead(), Bloodstone(), RoughGem(), OnyxAgate(), Burglar()]  # List of active jokers in the game
 OOPS_ALL_SIXES = 0
 FILLED_JOKER_SLOTS = len(JOKERS)
 RETRIGGERS = 0
 MAX_INTEREST = 5
+SKIPPED_BLINDS = 0
 
 # Game variables
 BASE_HAND_SCORES = {
@@ -164,38 +169,4 @@ TIMES_PLAYED = {
 }
 
 def reset_game():
-    global GAMESTATE, DECK, STAKE, SMALL_BLIND_MONEY, SCORE_SCALING, STARTING_HANDS, \
-           STARTING_DISCARDS, STARTING_MONEY, INPUT, ETERNAL_CHANCE, PERISHABLE_CHANCE, \
-           RENTAL_CHANCE, ANTE, SMALL_BLIND_SCORE, BIG_BLIND_SCORE, BOSS_BLIND_SCORE, \
-           BASE_ANTE_8_SCORE, CURRENT_BLIND
-    GAMESTATE = GameState.deck_select
-    DECK = "white"
-    STAKE = "white"
-    SMALL_BLIND_MONEY = 3
-    BIG_BLIND_MONEY = 4
-    BOSS_BLIND_MONEY = 5
-    SMALL_BLIND_SCORE = 0
-    BIG_BLIND_SCORE = 0
-    BOSS_BLIND_SCORE = 0
-    BASE_ANTE_SCORE = {
-        1: 600, 2: 1600, 3: 4000, 4: 10000, 5: 22000, 6: 40000, 7: 70000, 8: 100000
-    }
-    CURRENT_BLIND = "small"
-    SCORE_SCALING = 1.0
-    STARTING_HANDS = 4
-    HANDS = STARTING_HANDS
-    STARTING_DISCARDS = 3
-    DISCARDS = STARTING_DISCARDS
-    STARTING_MONEY = 4
-    MONEY = 0
-    INPUT = None
-    ETERNAL_CHANCE = 0.0
-    PERISHABLE_CHANCE = 0.0
-    RENTAL_CHANCE = 0.0
-    ANTE = 1
-    HAND_SCORES = BASE_HAND_SCORES
-    JOKERS = []
-    CHIPS = 0
-    MULT = 0
-    CARD_RANK = None
-    CARD_SUIT = None
+    pass

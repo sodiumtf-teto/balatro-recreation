@@ -250,19 +250,19 @@ void loop() {
         isSequentialRunning = false;
         Serial.println("DONE");
         tcaSelect(0);
-        display.clearToEOL();
+        display.clear();
         tcaSelect(1);
-        display.clearToEOL();
+        display.clear();
     }
     else if (strncmp(command, "SET MULT ", 9) == 0) {
 
         strncpy(currentMult, command + 9, sizeof(currentMult) - 1);
         currentMult[sizeof(currentMult) - 1] = '\0';
 
-        tcaSelect(1);
+        tcaSelect(0);
         updateDisplay(currentMult);
 
-        startTilt(5, false);
+        startTilt(14, false);
         Serial.println("DONE");
 
     }
@@ -271,10 +271,10 @@ void loop() {
         strncpy(currentChips, command + 10, sizeof(currentChips) - 1);
         currentChips[sizeof(currentChips) - 1] = '\0';
 
-        tcaSelect(0);
+        tcaSelect(1);
         updateDisplay(currentChips);
 
-        startTilt(6, false);
+        startTilt(15, false);
         Serial.println("DONE");
 
     }
@@ -282,17 +282,17 @@ void loop() {
 
         int servoNum = -1;
 
-        if (strcmp(command, "TILT CARD 1") == 0) servoNum = 4;
-        else if (strcmp(command, "TILT CARD 2") == 0) servoNum = 3;
-        else if (strcmp(command, "TILT CARD 3") == 0) servoNum = 2;
-        else if (strcmp(command, "TILT CARD 4") == 0) servoNum = 1;
+        if (strcmp(command, "TILT CARD 1") == 0) servoNum = 8;
+        else if (strcmp(command, "TILT CARD 2") == 0) servoNum = 6;
+        else if (strcmp(command, "TILT CARD 3") == 0) servoNum = 4;
+        else if (strcmp(command, "TILT CARD 4") == 0) servoNum = 2;
         else if (strcmp(command, "TILT CARD 5") == 0) servoNum = 0;
 
-        else if (strcmp(command, "TILT JOKER 1") == 0) servoNum = 11;
-        else if (strcmp(command, "TILT JOKER 2") == 0) servoNum = 10;
-        else if (strcmp(command, "TILT JOKER 3") == 0) servoNum = 9;
-        else if (strcmp(command, "TILT JOKER 4") == 0) servoNum = 8;
-        else if (strcmp(command, "TILT JOKER 5") == 0) servoNum = 7;
+        else if (strcmp(command, "TILT JOKER 1") == 0) servoNum = 9;
+        else if (strcmp(command, "TILT JOKER 2") == 0) servoNum = 7;
+        else if (strcmp(command, "TILT JOKER 3") == 0) servoNum = 5;
+        else if (strcmp(command, "TILT JOKER 4") == 0) servoNum = 3;
+        else if (strcmp(command, "TILT JOKER 5") == 0) servoNum = 1;
 
         if (servoNum != -1) {
             isSequentialRunning = true;

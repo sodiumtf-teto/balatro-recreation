@@ -6,14 +6,14 @@ import numpy as np
 from enum import IntEnum
 from PIL import Image
 
-from hardware.detect_cards import CardDetector, format_cards
+from hardware.detect_cards import BoardDetector, format_cards
 from hardware.camera import capture_image
 from hardware.arduino_serial import get_button_press, activate_scored_card, init_serial
 from game.decks import next_deck, apply_deck
 from game.stakes import next_stake, apply_stake
 from game.blinds import calculate_blinds
 from game.scoring import evaluate_hand
-from game.jokers import trigger_jokers, joker_check, MrBones
+from game.jokers import trigger_jokers, joker_check, sync_jokers, MrBones, ToTheMoon
 
 IMAGE_PATH = "hardware/board.jpg"
 WEIGHTS_PATH = "hardware/weights/poker_best.pt"
@@ -88,8 +88,11 @@ def run_game(detector):
                         print("Snapping photo of the board...")
                         capture_image(IMAGE_PATH, camera_index=VIDEO_INDEX)
                         # Detect the cards
-                        state.PLAYED_CARDS = detector.detect(IMAGE_PATH) 
+                        aruco_ids, state.PLAYED_CARDS = detector.detect(IMAGE_PATH) 
+                        # sync_jokers(aruco_ids)
                         hand = format_cards(state.PLAYED_CARDS)
+                        # joker_names = [j.name for j in state.JOKERS]
+                        # print(f"Jokers Detected (L to R): {', '.join(joker_names)}")
                         print(f"Cards Detected (L to R): {', '.join(hand)}")
                         # Evaluate and score
                         evaluate_hand(state.PLAYED_CARDS)
@@ -138,7 +141,16 @@ def run_game(detector):
                         for cash in range(state.HANDS):
                             print("$", end="")
                             state.MONEY_GAIN += 1
-                    if state.MONEY >= 5:
+                    if state.MONEY >= 5 and joker_check(ToTheMoon) == True:
+                        print("\n2 interest per $5 (" + str(state.MAX_INTEREST * 2) + " max): ", end="")
+                        temp = state.MONEY
+                        i = 0
+                        while(temp >= 5 and i <= state.MAX_INTEREST):
+                            temp -= 5
+                            print("$$", end="")
+                            state.MONEY_GAIN += 2
+                            i += 1
+                    elif state.MONEY >= 5:
                         print("\n1 interest per $5 (" + str(state.MAX_INTEREST) + " max): ", end="")
                         temp = state.MONEY
                         i = 0
@@ -156,6 +168,8 @@ def run_game(detector):
                     state.MONEY_GAIN = 0
             else:
                 print("Skipping blind\n")
+                state.SKIPPED_BLINDS += 1
+                trigger_jokers("throwback")
                 state.INPUT = None
             # Increment blind and/or ante
             if state.GAMESTATE == state.GameState.lose:
@@ -172,5 +186,5 @@ def run_game(detector):
         
 if __name__ == "__main__":
     init_serial()  # Initialize the serial connection to Arduino
-    cv_detector = CardDetector(weights_path=WEIGHTS_PATH, conf=0.25)
+    cv_detector = BoardDetector(weights_path=WEIGHTS_PATH, conf=0.25)
     run_game(cv_detector)
