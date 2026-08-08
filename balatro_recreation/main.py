@@ -98,6 +98,7 @@ def run_game(detector):
                         evaluate_hand(state.PLAYED_CARDS)
                         print(f"Hand Detected: {state.HAND_TYPE}")
                         print(f"Hand Score: {format_balatro_number(state.SCORE)}")
+                        print(f"Discards: {state.DISCARDS}")
                         state.SCORE_SUM += state.SCORE
                         if state.SCORE_SUM >= state.SCORE_TARGET:
                             print("\n*** Blind Defeated! ***")
