@@ -1,6 +1,6 @@
 from collections import Counter
 from game import state
-from game.jokers import Splash, FourFingers, Shortcut, Pareidolia, trigger_jokers, joker_check
+from game.jokers import Splash, FourFingers, Shortcut, Pareidolia, SmearedJoker, trigger_jokers, joker_check
 from hardware.arduino_serial import activate_scored_card, start_scoring_phase, add_mult, add_chips
 
 RANK_VALUES = {
@@ -19,6 +19,32 @@ def parse_card(card_str):
     if card_str.startswith('10'):
         return '10', card_str[2:]
     return card_str[0], card_str[1:]
+
+def is_suit(card_suit, target_suit):
+    """
+    Checks whether a card's actual suit counts as target_suit.
+
+    state.CARD_SUIT should always retain the card's actual suit.
+    This function only handles suit equivalence/modifiers.
+    """
+
+    card_suit = card_suit.upper()
+    target_suit = target_suit.upper()
+
+    # Normal suit
+    if card_suit == target_suit:
+        return True
+
+    # Smeared Joker:
+    # Hearts and Diamonds count as the same suit.
+    # Spades and Clubs count as the same suit.
+    if any(isinstance(j, SmearedJoker) for j in state.JOKERS):
+        if {card_suit, target_suit} <= {"H", "D"}:
+            return True
+        if {card_suit, target_suit} <= {"S", "C"}:
+            return True
+
+    return False
 
 def evaluate_hand(hand):
     if not hand:
@@ -75,24 +101,22 @@ def evaluate_hand(hand):
     if not is_straight and 'A' in ranks:
         is_straight, straight_cards = test_straight(ranks, RANK_ORDER_LOW)
 
-    # --- Check Flush & Straight Flush ---
+    # --- Check Flush ---
     is_flush = False
     flush_suit = None
-    for suit, count in suit_counts.items():
-        if count >= min_flush_cards:
+
+    for target_suit in ["H", "D", "S", "C"]:
+        matching_cards = [
+            (r, s) for r, s in parsed
+            if is_suit(s, target_suit)
+        ]
+
+        if len(matching_cards) >= min_flush_cards:
             is_flush = True
-            flush_suit = suit
+            flush_suit = target_suit
             break
 
-    is_straight_flush = False
-    if is_straight and is_flush:
-        # Verify that all cards forming the straight share the flush suit
-        straight_suit_match = all(
-            any(r == sr and s == flush_suit for r, s in parsed)
-            for sr in straight_cards
-        )
-        if straight_suit_match:
-            is_straight_flush = True
+    is_straight_flush = is_straight and is_flush
 
     # --- Determine Hand Type ---
     state.HAND_TYPE = "None"

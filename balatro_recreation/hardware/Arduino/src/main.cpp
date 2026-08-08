@@ -172,11 +172,15 @@ void setup() {
   display.begin(&Adafruit128x64, 0x3C);
   display.setFont(System5x7);
   display.clear();
+  display.ssd1306WriteCmd(0x81); // Set Contrast command
+  display.ssd1306WriteCmd(0x20); // Contrast value
 
   tcaSelect(1);
   display.begin(&Adafruit128x64, 0x3C);
   display.setFont(System5x7);
   display.clear();
+  display.ssd1306WriteCmd(0x81); // Set Contrast command
+  display.ssd1306WriteCmd(0x20); // Contrast value
 
   pinMode(PLAY_PIN, INPUT);
   pinMode(DISCARD_PIN, INPUT);
@@ -253,6 +257,10 @@ void loop() {
         display.clear();
         tcaSelect(1);
         display.clear();
+    }
+    else if (strcmp(command, "RESET TILT SPEED") == 0) {
+        startTime = millis();
+        Serial.println("DONE");
     }
     else if (strncmp(command, "SET MULT ", 9) == 0) {
 

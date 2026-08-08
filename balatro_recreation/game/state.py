@@ -8,7 +8,8 @@ from game.jokers import Supernova, RideTheBus, SpaceJoker, GreenJoker, ToDoList,
 from game.jokers import Rocket, Obelisk, Photograph, HangingChad, MrBones, GrosMichel, Cavendish
 from game.jokers import CardSharp, Madness, ToTheMoon, GoldenJoker, BaseballCard, Burglar, Bull
 from game.jokers import Popcorn, IceCream, SpareTrousers, AncientJoker, WalkieTalkie, Seltzer
-from game.jokers import Throwback, RoughGem, Arrowhead, Bloodstone, OnyxAgate
+from game.jokers import Throwback, RoughGem, Arrowhead, Bloodstone, OnyxAgate, SmearedJoker
+from game.jokers import TheDuo, TheTrio, TheFamily, TheOrder, TheTribe, WeeJoker
 
 # Game state enumeration
 class GameState(IntEnum):
@@ -53,6 +54,7 @@ HANDS = STARTING_HANDS
 HAND_TYPE = None
 IS_HAND = ["None", "None"]
 PLAYED_CARDS = None
+HELD_CARDS = None
 SCORED_CARDS = None
 CARD_ORDER = 0
 NUM_CARDS = 0
@@ -72,7 +74,7 @@ PERISHABLE_CHANCE = 0.0
 RENTAL_CHANCE = 0.0
 ANTE = 1
 MAX_JOKER_SLOTS = 5
-JOKERS = [Arrowhead(), Bloodstone(), RoughGem(), OnyxAgate(), Burglar()]  # List of active jokers in the game
+JOKERS = [WeeJoker(), Brainstorm(), Brainstorm(), Brainstorm(), Brainstorm()]  # List of active jokers in the game
 OOPS_ALL_SIXES = 0
 FILLED_JOKER_SLOTS = len(JOKERS)
 RETRIGGERS = 0

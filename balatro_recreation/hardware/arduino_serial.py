@@ -43,6 +43,11 @@ def start_scoring_phase():
     arduino.write(command.encode('utf-8'))
     wait_for_arduino() # Wait for the Arduino to reset its timer and reply "DONE"
 
+def reset_tilt_speed():
+    command = "RESET TILT SPEED\n"
+    arduino.write(command.encode('utf-8'))
+    wait_for_arduino() # Wait for the Arduino to reset its timer and reply "DONE"
+
 def activate_scored_card(card_num):
     command = f"TILT CARD " + str(card_num + 1) + "\n"
     arduino.write(command.encode('utf-8'))
@@ -68,7 +73,7 @@ def add_mult(mult):
     wait_for_arduino()
 
 def mult_mult(multmult):
-    state.MULT = int(state.MULT * multmult)
+    state.MULT = state.MULT * multmult
     formatted_mult = format_balatro_number(state.MULT)
     command = f"SET MULT {formatted_mult}\n"
     arduino.write(command.encode('utf-8'))

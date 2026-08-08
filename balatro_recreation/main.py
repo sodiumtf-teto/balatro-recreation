@@ -89,11 +89,11 @@ def run_game(detector):
                         capture_image(IMAGE_PATH, camera_index=VIDEO_INDEX)
                         # Detect the cards
                         aruco_ids, state.PLAYED_CARDS = detector.detect(IMAGE_PATH) 
-                        # sync_jokers(aruco_ids)
+                        #sync_jokers(aruco_ids)
                         hand = format_cards(state.PLAYED_CARDS)
-                        # joker_names = [j.name for j in state.JOKERS]
-                        # print(f"Jokers Detected (L to R): {', '.join(joker_names)}")
-                        print(f"Cards Detected (L to R): {', '.join(hand)}")
+                        #joker_names = [j.name for j in state.JOKERS]
+                        #print(f"Jokers Detected (L to R): {', '.join(joker_names)}")
+                        print(f"Played Cards Detected (L to R): {', '.join(hand)}")
                         # Evaluate and score
                         evaluate_hand(state.PLAYED_CARDS)
                         print(f"Hand Detected: {state.HAND_TYPE}")
