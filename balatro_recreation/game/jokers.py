@@ -1,6 +1,6 @@
 from collections import Counter
 from game import state
-from game.shop import hand_levelup
+from game.consumables import hand_levelup
 from hardware.arduino_serial import activate_joker, reset_tilt_speed, add_chips, add_mult, mult_mult
 import random
 
@@ -32,10 +32,11 @@ def joker_check(joker):
         return False
     
 class Joker:
-    def __init__(self, name, description, rarity, copyable=True):
+    def __init__(self, name, description, rarity, buy_price, copyable=True):
         self.name = name
         self.description = description
         self.rarity = rarity
+        self.buy_price = buy_price
         self.copyable = copyable
         
     def print_trigger(self, message):
@@ -102,7 +103,7 @@ def get_copy_prefix(caller_name, chain, target_name):
 
 class Blueprint(Joker):
     def __init__(self):
-        super().__init__(name="Blueprint", description="Copies ability of Joker to the right", rarity="Rare", copyable=True)
+        super().__init__(name="Blueprint", description="Copies ability of Joker to the right", rarity="Rare", buy_price=10, copyable=True)
         
     def trigger(self, event):
         if event not in ["after_hand_played_pre", "after_hand_played_post", "end_of_blind", "before_hand_played", "on_card_score"]:
@@ -135,7 +136,7 @@ class Blueprint(Joker):
 
 class Brainstorm(Joker):
     def __init__(self):
-        super().__init__(name="Brainstorm", description="Copies ability of leftmost Joker", rarity="Rare", copyable=True)
+        super().__init__(name="Brainstorm", description="Copies ability of leftmost Joker", rarity="Rare", buy_price=10, copyable=True)
         
     def trigger(self, event):
         if event not in ["after_hand_played_pre", "after_hand_played_post", "end_of_blind", "before_hand_played", "on_card_score"]:
@@ -171,7 +172,7 @@ class Brainstorm(Joker):
 
 class Burglar(Joker):
     def __init__(self):
-        super().__init__(name="Burglar", description="When Blind is selected, gain +3 Hands and lose all discards", rarity="Uncommon")
+        super().__init__(name="Burglar", description="When Blind is selected, gain +3 Hands and lose all discards", rarity="Uncommon", buy_price=6)
         
     def trigger(self, event):
         if event == "start_of_blind":
@@ -188,7 +189,7 @@ class Burglar(Joker):
 
 class BasicJoker(Joker):
     def __init__(self):
-        super().__init__(name="Joker", description="+4 Mult", rarity="Common")
+        super().__init__(name="Joker", description="+4 Mult", rarity="Common", buy_price=2)
         
     def trigger(self, event):
         if event == "after_hand_played_main":
@@ -198,7 +199,7 @@ class BasicJoker(Joker):
 
 class JollyJoker(Joker):
     def __init__(self):
-        super().__init__(name="Jolly Joker", description="+12 Mult if played hand contains a Pair", rarity="Common")
+        super().__init__(name="Jolly Joker", description="+12 Mult if played hand contains a Pair", rarity="Common", buy_price=3)
         
     def trigger(self, event):
         if event == "after_hand_played_main" and "Pair" in state.IS_HAND:
@@ -208,7 +209,7 @@ class JollyJoker(Joker):
 
 class ZanyJoker(Joker):
     def __init__(self):
-        super().__init__(name="Zany Joker", description="+12 Mult if played hand contains a Three of a Kind", rarity="Common")
+        super().__init__(name="Zany Joker", description="+12 Mult if played hand contains a Three of a Kind", rarity="Common", buy_price=4)
         
     def trigger(self, event):
         if event == "after_hand_played_main" and "Three of a Kind" in state.IS_HAND:
@@ -218,7 +219,7 @@ class ZanyJoker(Joker):
 
 class MadJoker(Joker):
     def __init__(self):
-        super().__init__(name="Mad Joker", description="+10 Mult if played hand contains a Two Pair", rarity="Common")
+        super().__init__(name="Mad Joker", description="+10 Mult if played hand contains a Two Pair", rarity="Common", buy_price=4)
         
     def trigger(self, event):
         if event == "after_hand_played_main" and "Two Pair" in state.IS_HAND:
@@ -228,7 +229,7 @@ class MadJoker(Joker):
 
 class CrazyJoker(Joker):
     def __init__(self):
-        super().__init__(name="Crazy Joker", description="+12 Mult if played hand contains a Straight", rarity="Common")
+        super().__init__(name="Crazy Joker", description="+12 Mult if played hand contains a Straight", rarity="Common", buy_price=4)
         
     def trigger(self, event):
         if event == "after_hand_played_main" and "Straight" in state.IS_HAND:
@@ -238,7 +239,7 @@ class CrazyJoker(Joker):
 
 class DrollJoker(Joker):
     def __init__(self):
-        super().__init__(name="Droll Joker", description="+10 Mult if played hand contains a Flush", rarity="Common")
+        super().__init__(name="Droll Joker", description="+10 Mult if played hand contains a Flush", rarity="Common", buy_price=4)
         
     def trigger(self, event):
         if event == "after_hand_played_main" and "Flush" in state.IS_HAND:
@@ -248,7 +249,7 @@ class DrollJoker(Joker):
 
 class SlyJoker(Joker):
     def __init__(self):
-        super().__init__(name="Sly Joker", description="+50 Chips if played hand contains a Pair", rarity="Common")
+        super().__init__(name="Sly Joker", description="+50 Chips if played hand contains a Pair", rarity="Common", buy_price=3)
         
     def trigger(self, event):
         if event == "after_hand_played_main" and "Pair" in state.IS_HAND:
@@ -258,7 +259,7 @@ class SlyJoker(Joker):
 
 class WilyJoker(Joker):
     def __init__(self):
-        super().__init__(name="Wily Joker", description="+100 Chips if played hand contains a Three of a Kind", rarity="Common")
+        super().__init__(name="Wily Joker", description="+100 Chips if played hand contains a Three of a Kind", rarity="Common", buy_price=4)
         
     def trigger(self, event):
         if event == "after_hand_played_main" and "Three of a Kind" in state.IS_HAND:
@@ -268,7 +269,7 @@ class WilyJoker(Joker):
 
 class CleverJoker(Joker):
     def __init__(self):
-        super().__init__(name="Clever Joker", description="+80 Chips if played hand contains a Two Pair", rarity="Common")
+        super().__init__(name="Clever Joker", description="+80 Chips if played hand contains a Two Pair", rarity="Common", buy_price=4)
         
     def trigger(self, event):
         if event == "after_hand_played_main" and "Two Pair" in state.IS_HAND:
@@ -278,7 +279,7 @@ class CleverJoker(Joker):
 
 class DeviousJoker(Joker):
     def __init__(self):
-        super().__init__(name="Devious Joker", description="+100 Chips if played hand contains a Straight", rarity="Common")
+        super().__init__(name="Devious Joker", description="+100 Chips if played hand contains a Straight", rarity="Common", buy_price=4)
         
     def trigger(self, event):
         if event == "after_hand_played_main" and "Straight" in state.IS_HAND:
@@ -288,7 +289,7 @@ class DeviousJoker(Joker):
 
 class CraftyJoker(Joker):
     def __init__(self):
-        super().__init__(name="Crafty Joker", description="+80 Chips if played hand contains a Flush", rarity="Common")
+        super().__init__(name="Crafty Joker", description="+80 Chips if played hand contains a Flush", rarity="Common", buy_price=4)
         
     def trigger(self, event):
         if event == "after_hand_played_main" and "Flush" in state.IS_HAND:
@@ -298,7 +299,7 @@ class CraftyJoker(Joker):
 
 class HalfJoker(Joker):
     def __init__(self):
-        super().__init__(name="Half Joker", description="+20 Mult if played hand contains 3 or less cards", rarity="Common")
+        super().__init__(name="Half Joker", description="+20 Mult if played hand contains 3 or less cards", rarity="Common", buy_price=5)
         
     def trigger(self, event):
         if event == "after_hand_played_main" and state.NUM_CARDS <= 3:
@@ -308,7 +309,7 @@ class HalfJoker(Joker):
 
 class Banner(Joker):
     def __init__(self):
-        super().__init__(name="Banner", description="+30 Chips per discard", rarity="Common")
+        super().__init__(name="Banner", description="+30 Chips per discard", rarity="Common", buy_price=5)
         self.bonus = 0
         
     def trigger(self, event):
@@ -320,7 +321,7 @@ class Banner(Joker):
 
 class MysticSummit(Joker):
     def __init__(self):
-        super().__init__(name="Mystic Summit", description="+15 Mult at 0 discards", rarity="Common")
+        super().__init__(name="Mystic Summit", description="+15 Mult at 0 discards", rarity="Common", buy_price=5)
         
     def trigger(self, event):
         if event == "after_hand_played_main" and state.DISCARDS == 0:
@@ -331,7 +332,7 @@ class MysticSummit(Joker):
 class Misprint(Joker):
     def __init__(self):
         self.random_mult = 0
-        super().__init__(name="Misprint", description="+0-23 Mult", rarity="Common")
+        super().__init__(name="Misprint", description="+0-23 Mult", rarity="Common", buy_price=4)
         
     def trigger(self, event):
         if event == "after_hand_played_main":
@@ -366,7 +367,7 @@ class LoyaltyCard(Joker):
 class JokerStencil(Joker):
     def __init__(self):
         # Remember to eventually change, maybe to update description on joker buy/sell?
-        super().__init__(name="Joker Stencil", description="x1 Mult for each empty Joker Slot and Joker Stencil", rarity="Uncommon")
+        super().__init__(name="Joker Stencil", description="x1 Mult for each empty Joker Slot and Joker Stencil", rarity="Uncommon", buy_price=8)
     def trigger(self, event):
         if event == "after_hand_played_main":
             open_slots = state.MAX_JOKER_SLOTS + sum(isinstance(item, JokerStencil) for item in state.JOKERS) - len(state.JOKERS)
@@ -376,7 +377,7 @@ class JokerStencil(Joker):
 
 class AbstractJoker(Joker):
     def __init__(self):
-        super().__init__(name="Abstract Joker", description="+3 Mult for each Joker card", rarity="Common")
+        super().__init__(name="Abstract Joker", description="+3 Mult for each Joker card", rarity="Common", buy_price=4)
     def trigger(self, event):
         if event == "after_hand_played_main":
             add_mult(state.FILLED_JOKER_SLOTS * 3)
@@ -385,7 +386,7 @@ class AbstractJoker(Joker):
 
 class Supernova(Joker):
     def __init__(self):
-        super().__init__(name="Supernova", description="Adds the number of times poker hand has been played this run to Mult", rarity="Common")
+        super().__init__(name="Supernova", description="Adds the number of times poker hand has been played this run to Mult", rarity="Common", buy_price=5)
     def trigger(self, event):
         if event == "after_hand_played_main":
             add_mult(state.TIMES_PLAYED[state.HAND_TYPE])
@@ -394,7 +395,7 @@ class Supernova(Joker):
 
 class GrosMichel(Joker):
     def __init__(self):
-        super().__init__(name="Gros Michel", description="+15 Mult, 1 in 6 chance this card is destroyed at end of round", rarity="Common")
+        super().__init__(name="Gros Michel", description="+15 Mult, 1 in 6 chance this card is destroyed at end of round", rarity="Common", buy_price=5)
     def trigger(self, event):
         if event == "after_hand_played_main":
             add_mult(15)
@@ -412,7 +413,7 @@ class GrosMichel(Joker):
 
 class Cavendish(Joker):
     def __init__(self):
-        super().__init__(name="Cavendish", description="x3 Mult, 1 in 1000 chance this card is destroyed at the end of round", rarity="Common")
+        super().__init__(name="Cavendish", description="x3 Mult, 1 in 1000 chance this card is destroyed at the end of round", rarity="Common", buy_price=4)
     def trigger(self, event):
         if event == "after_hand_played_main":
             mult_mult(3)
@@ -432,7 +433,7 @@ class RideTheBus(Joker):
     def __init__(self):
         self.hands_without_face = 0
         self.was_face = False
-        super().__init__(name="Ride the Bus", description="This Joker gains +1 Mult per consecutive hand played without scoring face card", rarity="Common")
+        super().__init__(name="Ride the Bus", description="This Joker gains +1 Mult per consecutive hand played without scoring face card", rarity="Common", buy_price=6)
     def trigger(self, event):
         if event == "on_card_score" and state.IS_FACE:
             if self.hands_without_face > 0:
@@ -457,7 +458,7 @@ class RideTheBus(Joker):
 
 class SpaceJoker(Joker):
     def __init__(self):
-        super().__init__(name="Space Joker", description=f"1 in 4 chance to upgrade level of played poker hand", rarity="Uncommon")
+        super().__init__(name="Space Joker", description=f"1 in 4 chance to upgrade level of played poker hand", rarity="Uncommon", buy_price=5)
     def trigger(self, event):
         if event == "after_hand_played_pre" and random.randint(0,3) + 2**state.OOPS_ALL_SIXES >= 3:
             hand_levelup(state.HAND_TYPE)
@@ -467,7 +468,7 @@ class SpaceJoker(Joker):
 class GreenJoker(Joker):
     def __init__(self):
         self.mult = 0
-        super().__init__(name="Green Joker", description="+1 Mult per hand played, -1 Mult per discard", rarity="Common")
+        super().__init__(name="Green Joker", description="+1 Mult per hand played, -1 Mult per discard", rarity="Common", buy_price=4)
     def trigger(self, event):
         if event == "after_hand_played_pre":
             self.mult += 1
@@ -485,7 +486,7 @@ class GreenJoker(Joker):
 class SquareJoker(Joker):
     def __init__(self):
         self.chips = 0
-        super().__init__(name="Square Joker", description="This Joker gains +4 Chips if played hand has exactly 4 cards", rarity="Common")
+        super().__init__(name="Square Joker", description="This Joker gains +4 Chips if played hand has exactly 4 cards", rarity="Common", buy_price=4)
     def trigger(self, event):
         if event == "after_hand_played_pre" and len(state.PLAYED_CARDS) == 4:
             self.chips += 4
@@ -499,7 +500,7 @@ class SquareJoker(Joker):
 class Obelisk(Joker):
     def __init__(self):
         self.multmult = 1
-        super().__init__(name="Obelisk", description="This Joker gains x0.2 Mult per consecutive hand played without playing your most played poker hand", rarity="Rare")
+        super().__init__(name="Obelisk", description="This Joker gains x0.2 Mult per consecutive hand played without playing your most played poker hand", rarity="Rare", buy_price=8)
     def trigger(self, event):
         if event == "before_hand_played":
             if (state.TIMES_PLAYED[state.HAND_TYPE]) == max(state.TIMES_PLAYED.values()):
@@ -519,7 +520,7 @@ class Obelisk(Joker):
 class CardSharp(Joker):
     def __init__(self):
         self.times_played_copy = None
-        super().__init__(name="Card Sharp", description="x3 Mult if played poker hand has already been played this round", rarity="Uncommon")
+        super().__init__(name="Card Sharp", description="x3 Mult if played poker hand has already been played this round", rarity="Uncommon", buy_price=6)
     def trigger(self, event):
         if event == "start_of_blind":
             self.times_played_copy = state.TIMES_PLAYED.copy()
@@ -549,7 +550,7 @@ class Madness(Joker):
 
 class BaseballCard(Joker):
     def __init__(self):
-        super().__init__(name="Baseball Card", description="Uncommon Jokers each give x1.5 Mult", rarity="Rare")
+        super().__init__(name="Baseball Card", description="Uncommon Jokers each give x1.5 Mult", rarity="Rare", buy_price=8)
     def trigger(self, event):
         if event == "after_hand_played_main":
             for joker in state.JOKERS:
@@ -561,7 +562,7 @@ class BaseballCard(Joker):
 class Bull(Joker):
     def __init__(self):
         self.chips = 0
-        super().__init__(name="Bull", description="+2 Chips for each $1 you have", rarity="Common")
+        super().__init__(name="Bull", description="+2 Chips for each $1 you have", rarity="Common", buy_price=6)
     def trigger(self, event):
         if event == "after_hand_played_pre":
             self.chips = state.MONEY * 2
@@ -573,7 +574,7 @@ class Bull(Joker):
 class Bootstraps(Joker):
     def __init__(self):
         self.mult = 0
-        super().__init__(name="Bootstraps", description="+2 Mult for every $5 you have", rarity="Uncommon")
+        super().__init__(name="Bootstraps", description="+2 Mult for every $5 you have", rarity="Uncommon", buy_price=7)
     def trigger(self, event):
         if event == "after_hand_played_pre":
             self.mult = int(state.MONEY / 5) * 2
@@ -585,7 +586,7 @@ class Bootstraps(Joker):
 class Popcorn(Joker):
     def __init__(self):
         self.mult = 20
-        super().__init__(name="Popcorn", description=f"+{self.mult} Mult, -4 Mult per round played", rarity="Common")
+        super().__init__(name="Popcorn", description=f"+{self.mult} Mult, -4 Mult per round played", rarity="Common", buy_price=5)
     def trigger(self, event):
         if event == "after_hand_played_main" and self.mult > 0:
             add_mult(self.mult)
@@ -604,7 +605,7 @@ class Popcorn(Joker):
 class IceCream(Joker):
     def __init__(self):
         self.chips = 100
-        super().__init__(name="Ice Cream", description=f"+{self.chips} Chips, -5 Chips for every hand played", rarity="Common")
+        super().__init__(name="Ice Cream", description=f"+{self.chips} Chips, -5 Chips for every hand played", rarity="Common", buy_price=5)
     def trigger(self, event):
         if event == "after_hand_played_main" and self.chips > 0:
             add_chips(self.chips)
@@ -623,7 +624,7 @@ class IceCream(Joker):
 class SpareTrousers(Joker):
     def __init__(self):
         self.mult = 0
-        super().__init__(name="Spare Trousers", description="This Joker gains +2 Mult if played hand contains a Two Pair", rarity="Uncommon")
+        super().__init__(name="Spare Trousers", description="This Joker gains +2 Mult if played hand contains a Two Pair", rarity="Uncommon", buy_price=6)
         
     def trigger(self, event):
         if event == "after_hand_played_pre" and "Two Pair" in state.IS_HAND:
@@ -637,7 +638,7 @@ class SpareTrousers(Joker):
 
 class Acrobat(Joker):
     def __init__(self):
-        super().__init__(name="Acrobat", description="x3 Mult on final hand of round", rarity="Uncommon")
+        super().__init__(name="Acrobat", description="x3 Mult on final hand of round", rarity="Uncommon", buy_price=6)
         
     def trigger(self, event):
         if event == "after_hand_played_main" and state.HANDS == 0:
@@ -648,7 +649,7 @@ class Acrobat(Joker):
 class Throwback(Joker):
     def __init__(self):
         self.multmult = 1
-        super().__init__(name="Throwback", description="x0.25 Mult for each Blind skipped this run", rarity="Uncommon")
+        super().__init__(name="Throwback", description="x0.25 Mult for each Blind skipped this run", rarity="Uncommon", buy_price=6)
         
     def trigger(self, event):
         if event == "throwback":
@@ -662,27 +663,41 @@ class Throwback(Joker):
 
 class FlowerPot(Joker):
     def __init__(self):
-        self.suits_scored = [0, 0, 0, 0]
+        self.suits_scored = [False, False, False, False]
+        self.cards_scored = 0
 
-        super().__init__(name="Flower Pot", description="x3 Mult if poker hand contains a Diamond card, Club card, Heart card, and Spade card", rarity="Uncommon")
-        
+        super().__init__(
+            name="Flower Pot",
+            description="x3 Mult if poker hand contains a Diamond card, Club card, Heart card, and Spade card",
+            rarity="Uncommon",
+            buy_price=6
+        )
+
     def trigger(self, event):
         if event == "on_card_score":
             from game.scoring import is_suit
-            if state.SUIT == "H":
-                self.suits_scored[0] += 1
-            if state.SUIT == "C":
-                self.suits_scored[1] += 1
-            if state.SUIT == "S":
-                self.suits_scored[2] += 1
-            if state.SUIT == "D":
-                self.suits_scored[3] += 1
+            self.cards_scored += 1
+            if state.CARD_ENHANCEMENT == "W":
+                for i in range(4):
+                    if not self.suits_scored[i]:
+                        self.suits_scored[i] = True
+                        break
+            else:
+                suits = ["H", "C", "S", "D"]
+                for i, suit in enumerate(suits):
+                    if is_suit(state.CARD_SUIT, suit):
+                        self.suits_scored[i] = True
         if event == "after_hand_played_pre":
-            pass
+            if self.cards_scored >= 4 and all(self.suits_scored):
+                mult_mult(3)
+                self.print_trigger("gives x3 Mult")
+                self.tilt()
+            self.suits_scored = [False, False, False, False]
+            self.cards_scored = 0
             
 class TheDuo(Joker):
     def __init__(self):
-        super().__init__(name="The Duo", description="x2 Mult if played hand contains a Pair", rarity="Rare")
+        super().__init__(name="The Duo", description="x2 Mult if played hand contains a Pair", rarity="Rare", buy_price=8)
     def trigger(self, event):
         if event == "after_hand_played_main" and "Pair" in state.IS_HAND:
             mult_mult(2)
@@ -691,7 +706,7 @@ class TheDuo(Joker):
 
 class TheTrio(Joker):
     def __init__(self):
-        super().__init__(name="The Trio", description="x3 Mult if played hand contains a Three of a Kind", rarity="Rare")
+        super().__init__(name="The Trio", description="x3 Mult if played hand contains a Three of a Kind", rarity="Rare", buy_price=8)
     def trigger(self, event):
         if event == "after_hand_played_main" and "Three of a Kind" in state.IS_HAND:
             mult_mult(3)
@@ -700,7 +715,7 @@ class TheTrio(Joker):
 
 class TheFamily(Joker):
     def __init__(self):
-        super().__init__(name="The Family", description="x4 Mult if played hand contains a Four of a Kind", rarity="Rare")
+        super().__init__(name="The Family", description="x4 Mult if played hand contains a Four of a Kind", rarity="Rare", buy_price=8)
     def trigger(self, event):
         if event == "after_hand_played_main" and "Four of a Kind" in state.IS_HAND:
             mult_mult(4)
@@ -709,7 +724,7 @@ class TheFamily(Joker):
 
 class TheOrder(Joker):
     def __init__(self):
-        super().__init__(name="The Order", description="x3 Mult if played hand contains a Straight", rarity="Rare")
+        super().__init__(name="The Order", description="x3 Mult if played hand contains a Straight", rarity="Rare", buy_price=8)
     def trigger(self, event):
         if event == "after_hand_played_main" and "Straight" in state.IS_HAND:
             mult_mult(3)
@@ -718,7 +733,7 @@ class TheOrder(Joker):
 
 class TheTribe(Joker):
     def __init__(self):
-        super().__init__(name="The Tribe", description="x2 Mult if played hand contains a Flush", rarity="Rare")
+        super().__init__(name="The Tribe", description="x2 Mult if played hand contains a Flush", rarity="Rare", buy_price=8)
     def trigger(self, event):
         if event == "after_hand_played_main" and "Flush" in state.IS_HAND:
             mult_mult(2)
@@ -728,7 +743,7 @@ class TheTribe(Joker):
 class WeeJoker(Joker):
     def __init__(self):
         self.chips = 0
-        super().__init__(name="Wee Joker", description="This Joker gains +8 Chips when each played 2 is scored", rarity="Rare")
+        super().__init__(name="Wee Joker", description="This Joker gains +8 Chips when each played 2 is scored", rarity="Rare", buy_price=8)
     def trigger(self, event):
         if event == "on_card_score" and state.CARD_RANK == "2":
             self.chips += 8
@@ -745,7 +760,7 @@ class WeeJoker(Joker):
 
 class GreedyJoker(Joker):
     def __init__(self):
-        super().__init__(name="Greedy Joker", description="Played diamonds give +3 Mult", rarity="Common")
+        super().__init__(name="Greedy Joker", description="Played diamonds give +3 Mult", rarity="Common", buy_price=5)
         
     def trigger(self, event):
         from game.scoring import is_suit
@@ -756,7 +771,7 @@ class GreedyJoker(Joker):
 
 class LustyJoker(Joker):
     def __init__(self):
-        super().__init__(name="Lusty Joker", description="Played hearts give +3 Mult", rarity="Common")
+        super().__init__(name="Lusty Joker", description="Played hearts give +3 Mult", rarity="Common", buy_price=5)
         
     def trigger(self, event):
         from game.scoring import is_suit
@@ -767,7 +782,7 @@ class LustyJoker(Joker):
 
 class WrathfulJoker(Joker):
     def __init__(self):
-        super().__init__(name="Wrathful Joker", description="Played spades give +3 Mult", rarity="Common")
+        super().__init__(name="Wrathful Joker", description="Played spades give +3 Mult", rarity="Common", buy_price=5)
         
     def trigger(self, event):
         from game.scoring import is_suit
@@ -778,7 +793,7 @@ class WrathfulJoker(Joker):
 
 class GluttonousJoker(Joker):
     def __init__(self):
-        super().__init__(name="Gluttonous Joker", description="Played clubs give +3 Mult", rarity="Common")
+        super().__init__(name="Gluttonous Joker", description="Played clubs give +3 Mult", rarity="Common", buy_price=5)
     def trigger(self, event):
         from game.scoring import is_suit
         if event == "on_card_score_blueprint" and is_suit(state.CARD_SUIT, "C"):
@@ -788,7 +803,7 @@ class GluttonousJoker(Joker):
 
 class Fibonacci(Joker):
     def __init__(self):
-        super().__init__(name="Fibonacci", description="Each played Ace, 2, 3, 5, or 8 gives +8 mult when scored", rarity="Uncommon")
+        super().__init__(name="Fibonacci", description="Each played Ace, 2, 3, 5, or 8 gives +8 mult when scored", rarity="Uncommon", buy_price=8)
     def trigger(self, event):
         if event == "on_card_score_blueprint" and state.CARD_RANK in ["A", "2", "3", "5", "8"]:
             add_mult(8)
@@ -797,7 +812,7 @@ class Fibonacci(Joker):
 
 class ScaryFace(Joker):
     def __init__(self):
-        super().__init__(name="Scary Face", description="Played face cards give +30 Chips when scored", rarity="Common")
+        super().__init__(name="Scary Face", description="Played face cards give +30 Chips when scored", rarity="Common", buy_price=4)
     def trigger(self, event):
         if event == "on_card_score_blueprint" and state.IS_FACE:
             state.CHIPS += 30
@@ -806,7 +821,7 @@ class ScaryFace(Joker):
 
 class EvenSteven(Joker):
     def __init__(self):
-        super().__init__(name="Even Steven", description="Played cards with even rank give +4 Mult when scored", rarity="Common")
+        super().__init__(name="Even Steven", description="Played cards with even rank give +4 Mult when scored", rarity="Common", buy_price=4)
     def trigger(self, event):
         if event == "on_card_score_blueprint" and state.CARD_RANK in ["2", "4", "6", "8", "10"]:
             add_mult(4)
@@ -815,7 +830,7 @@ class EvenSteven(Joker):
 
 class OddTodd(Joker):
     def __init__(self):
-        super().__init__(name="Odd Todd", description="Played cards with odd rank give +31 Chips when scored", rarity="Common")
+        super().__init__(name="Odd Todd", description="Played cards with odd rank give +31 Chips when scored", rarity="Common", buy_price=4)
     def trigger(self, event):
         if event == "on_card_score_blueprint" and state.CARD_RANK in ["A", "3", "5", "7", "9"]:
             state.CHIPS += 31
@@ -824,7 +839,7 @@ class OddTodd(Joker):
 
 class Scholar(Joker):
     def __init__(self):
-        super().__init__(name="Scholar", description="Played Aces give +20 Chips and +4 Mult when scored", rarity="Common")
+        super().__init__(name="Scholar", description="Played Aces give +20 Chips and +4 Mult when scored", rarity="Common", buy_price=4)
     def trigger(self, event):
         if event == "on_card_score_blueprint" and state.CARD_RANK == "A":
             state.CHIPS += 20
@@ -836,7 +851,7 @@ class Scholar(Joker):
 
 class BusinessCard(Joker):
     def __init__(self):
-        super().__init__(name="Business Card", description=f"Played face cards have a 1 in 2 chance to give $2 when scored", rarity="Common")
+        super().__init__(name="Business Card", description=f"Played face cards have a 1 in 2 chance to give $2 when scored", rarity="Common", buy_price=4)
     def trigger(self, event):
         if event == "on_card_score_blueprint" and state.IS_FACE and random.randint(0,1) + 2**state.OOPS_ALL_SIXES >= 1:
             state.MONEY += 2
@@ -845,7 +860,7 @@ class BusinessCard(Joker):
 
 class Bloodstone(Joker):
     def __init__(self):
-        super().__init__(name="Bloodstone", description=f"1 in 2 chance for played cards with Heart suit to give x1.5 Mult when scored", rarity="Uncommon")
+        super().__init__(name="Bloodstone", description=f"1 in 2 chance for played cards with Heart suit to give x1.5 Mult when scored", rarity="Uncommon", buy_price=7)
     def trigger(self, event):
         from game.scoring import is_suit
         if event == "on_card_score_blueprint" and is_suit(state.CARD_SUIT, "H") and random.randint(0,1) + 2**state.OOPS_ALL_SIXES >= 1:
@@ -855,7 +870,7 @@ class Bloodstone(Joker):
 
 class RoughGem(Joker):
     def __init__(self):
-        super().__init__(name="Rough Gem", description=f"Played cards with Diamond suit earn $1 when scored", rarity="Uncommon")
+        super().__init__(name="Rough Gem", description=f"Played cards with Diamond suit earn $1 when scored", rarity="Uncommon", buy_price=7)
     def trigger(self, event):
         from game.scoring import is_suit
         if event == "on_card_score_blueprint" and is_suit(state.CARD_SUIT, "D"):
@@ -865,7 +880,7 @@ class RoughGem(Joker):
 
 class Arrowhead(Joker):
     def __init__(self):
-        super().__init__(name="Arrowhead", description=f"Played cards with Spade suit give +50 Chips when scored", rarity="Uncommon")
+        super().__init__(name="Arrowhead", description=f"Played cards with Spade suit give +50 Chips when scored", rarity="Uncommon", buy_price=7)
     def trigger(self, event):
         from game.scoring import is_suit
         if event == "on_card_score_blueprint" and is_suit(state.CARD_SUIT, "S"):
@@ -875,7 +890,7 @@ class Arrowhead(Joker):
 
 class OnyxAgate(Joker):
     def __init__(self):
-        super().__init__(name="Onyx Agate", description=f"Played cards with Club suit give +7 Mult when scored", rarity="Uncommon")
+        super().__init__(name="Onyx Agate", description=f"Played cards with Club suit give +7 Mult when scored", rarity="Uncommon", buy_price=7)
     def trigger(self, event):
         from game.scoring import is_suit
         if event == "on_card_score_blueprint" and is_suit(state.CARD_SUIT, "C"):
@@ -885,7 +900,7 @@ class OnyxAgate(Joker):
 
 class Photograph(Joker):
     def __init__(self):
-        super().__init__(name="Photograph", description=f"First played face card gives x2 Mult when scored", rarity="Common")
+        super().__init__(name="Photograph", description=f"First played face card gives x2 Mult when scored", rarity="Common", buy_price=5)
     def trigger(self, event):
         if event == "on_card_score_blueprint" and state.CARD_ORDER == 1 and state.IS_FACE == True:
             mult_mult(2)
@@ -894,7 +909,7 @@ class Photograph(Joker):
 
 class WalkieTalkie(Joker):
     def __init__(self):
-        super().__init__(name="Walkie Talkie", description=f"Each played 10 or 4 gives +10 Chips and +4 Mult when scored", rarity="Common")
+        super().__init__(name="Walkie Talkie", description=f"Each played 10 or 4 gives +10 Chips and +4 Mult when scored", rarity="Common", buy_price=4)
     def trigger(self, event):
         if event == "on_card_score_blueprint" and state.CARD_RANK in ["10", "4"]:
             add_chips(10)
@@ -908,7 +923,7 @@ class AncientJoker(Joker):
     def __init__(self):
         global chosen_suit, chosen_suit_changed
         chosen_suit = random.choice(["H", "C", "S", "D"])
-        super().__init__(name="Ancient Joker", description=f"Each played card with {chosen_suit} gives x1.5 Mult when scored, suit changes at end of round", rarity="Rare")
+        super().__init__(name="Ancient Joker", description=f"Each played card with {chosen_suit} gives x1.5 Mult when scored, suit changes at end of round", rarity="Rare", buy_price=8)
     def trigger(self, event):
         global chosen_suit, chosen_suit_changed
         from game.scoring import is_suit
@@ -929,7 +944,7 @@ class AncientJoker(Joker):
 
 class SmileyFace(Joker):
     def __init__(self):
-        super().__init__(name="Smiley Face", description=f"Played face cards give +5 Mult when scored", rarity="Common")
+        super().__init__(name="Smiley Face", description=f"Played face cards give +5 Mult when scored", rarity="Common", buy_price=4)
     def trigger(self, event):
         if event == "on_card_score_blueprint" and state.IS_FACE == True:
             add_mult(5)
@@ -938,7 +953,7 @@ class SmileyFace(Joker):
 
 class Triboulet(Joker):
     def __init__(self):
-        super().__init__(name="Triboulet", description=f"Played Kings and Queens each give x2 Mult when scored", rarity="Legendary")
+        super().__init__(name="Triboulet", description=f"Played Kings and Queens each give x2 Mult when scored", rarity="Legendary", buy_price=20)
     def trigger(self, event):
         if event == "on_card_score_blueprint" and state.CARD_RANK in {"K", "Q"}:
             mult_mult(2)
@@ -953,7 +968,7 @@ class Triboulet(Joker):
 class ToDoList(Joker):
     def __init__(self):
         self.selected_hand = "None"
-        super().__init__(name="To Do List", description=f"Earn $4 if poker hand is a", rarity="Common")
+        super().__init__(name="To Do List", description=f"Earn $4 if poker hand is a", rarity="Common", buy_price=4)
     def trigger(self, event):
         if event == "before_hand_played_blueprint" and state.HAND_TYPE == self.selected_hand:
             self.print_trigger(f"gives $4")
@@ -965,7 +980,7 @@ class ToDoList(Joker):
 
 class DelayedGratification(Joker):
     def __init__(self):
-        super().__init__(name="Delayed Gratification", description="Earn $2 per discard if no discards are used by end of the round", rarity="Common", copyable=False)
+        super().__init__(name="Delayed Gratification", description="Earn $2 per discard if no discards are used by end of the round", rarity="Common", buy_price=4, copyable=False)
     def trigger(self, event):
         if event == "cash_out":
             if state.STARTING_DISCARDS == state.DISCARDS:
@@ -978,7 +993,7 @@ class DelayedGratification(Joker):
 class Rocket(Joker):
     def __init__(self):
         self.money = 1
-        super().__init__(name="Rocket", description="Earn $1 at end of round. Payout increases by $2 when Boss Blind is defeated", rarity="Uncommon", copyable=False)
+        super().__init__(name="Rocket", description="Earn $1 at end of round. Payout increases by $2 when Boss Blind is defeated", rarity="Uncommon", buy_price=6, copyable=False)
     def trigger(self, event):
         if event == "end_of_blind" and state.CURRENT_BLIND == "boss":
             self.money += 2
@@ -991,7 +1006,7 @@ class Rocket(Joker):
 
 class GoldenJoker(Joker):
     def __init__(self):
-        super().__init__(name="Golden Joker", description="Earn $4 at end of round", rarity="Common", copyable=False)
+        super().__init__(name="Golden Joker", description="Earn $4 at end of round", rarity="Common", buy_price=6, copyable=False)
     def trigger(self, event):
         if event == "cash_out":
             print("\nGolden Joker: ", end="")
@@ -1008,7 +1023,7 @@ class GoldenJoker(Joker):
 
 class Dusk(Joker):
     def __init__(self):
-        super().__init__(name="Dusk", description="Retrigger all played cards during final hand", rarity="Uncommon")
+        super().__init__(name="Dusk", description="Retrigger all played cards during final hand", rarity="Uncommon", buy_price=5)
         
     def trigger(self, event):
         if event == "retriggers" and state.HANDS == 0:
@@ -1018,7 +1033,7 @@ class Dusk(Joker):
 
 class Hack(Joker):
     def __init__(self):
-        super().__init__(name="Hack", description="Retrigger all 2s, 3s, 4s, and 5s", rarity="Uncommon")
+        super().__init__(name="Hack", description="Retrigger all 2s, 3s, 4s, and 5s", rarity="Uncommon", buy_price=6)
         
     def trigger(self, event):
         if event == "retriggers" and state.CARD_RANK in ["2", "3", "4", "5"]:
@@ -1028,7 +1043,7 @@ class Hack(Joker):
 
 class SockAndBuskin(Joker):
     def __init__(self):
-        super().__init__(name="Sock and Buskin", description="Retrigger all played face cards", rarity="Uncommon")
+        super().__init__(name="Sock and Buskin", description="Retrigger all played face cards", rarity="Uncommon", buy_price=6)
         
     def trigger(self, event):
         if event == "retriggers" and state.IS_FACE:
@@ -1039,7 +1054,7 @@ class SockAndBuskin(Joker):
 class Seltzer(Joker):
     def __init__(self):
         self.hands_left = 10
-        super().__init__(name="Seltzer", description=f"Retrigger all cards played for the next {self.hands_left} hands", rarity="Uncommon")
+        super().__init__(name="Seltzer", description=f"Retrigger all cards played for the next {self.hands_left} hands", rarity="Uncommon", buy_price=6)
         
     def trigger(self, event):
         if event == "retriggers":
@@ -1059,7 +1074,7 @@ class Seltzer(Joker):
 
 class HangingChad(Joker):
     def __init__(self):
-        super().__init__(name="Hanging Chad", description="Retrigger first played card used in scoring 2 additional times", rarity="Common")
+        super().__init__(name="Hanging Chad", description="Retrigger first played card used in scoring 2 additional times", rarity="Common", buy_price=4)
     def trigger(self, event):
         if event == "retriggers" and state.CARD_ORDER == 1:
             state.RETRIGGERS += 2
@@ -1068,19 +1083,19 @@ class HangingChad(Joker):
 
 class Splash(Joker):
     def __init__(self):
-        super().__init__(name="Splash", description="Scores all played cards", rarity="Common", copyable=False)
+        super().__init__(name="Splash", description="Scores all played cards", rarity="Common", buy_price=3, copyable=False)
 class FourFingers(Joker):
     def __init__(self):
-        super().__init__(name="Four Fingers", description="All Flushes and Straights can be made with 4 cards", rarity="Uncommon", copyable=False)
+        super().__init__(name="Four Fingers", description="All Flushes and Straights can be made with 4 cards", rarity="Uncommon", buy_price=7, copyable=False)
 class Shortcut(Joker):
     def __init__(self):
-        super().__init__(name="Shortcut", description="Allows Straights to be made with gaps of 1 rank", rarity="Uncommon", copyable=False)
+        super().__init__(name="Shortcut", description="Allows Straights to be made with gaps of 1 rank", rarity="Uncommon", buy_price=7, copyable=False)
 class Pareidolia(Joker):
     def __init__(self):
-        super().__init__(name="Pareidolia", description="All cards are considered face cards", rarity="Uncommon", copyable=False)
+        super().__init__(name="Pareidolia", description="All cards are considered face cards", rarity="Uncommon", buy_price=5, copyable=False)
 class MrBones(Joker):
     def __init__(self):
-        super().__init__(name="Mr. Bones", description="Prevents Death if chips scored are at least 25% of required chips, then self destructs", rarity="Uncommon", copyable=False)
+        super().__init__(name="Mr. Bones", description="Prevents Death if chips scored are at least 25% of required chips, then self destructs", rarity="Uncommon", buy_price=5, copyable=False)
     def trigger(self, event):
         if event == "bones" and not state.BONED:
             self.print_trigger("prevented your death then died like a hero")
@@ -1090,13 +1105,16 @@ class MrBones(Joker):
             self.perish()
 class ToTheMoon(Joker):
     def __init__(self):
-        super().__init__(name="To The Moon", description="Earn an extra $1 of interest for every $5 you have at end of round", rarity="Uncommon", copyable=False)
+        super().__init__(name="To The Moon", description="Earn an extra $1 of interest for every $5 you have at end of round", rarity="Uncommon", buy_price=5, copyable=False)
 class SmearedJoker(Joker):
     def __init__(self):
-        super().__init__(name="Smeared Joker", description="Hearts and Diamonds count as the same suit, Spades and Clubs count as the same suit", rarity="Uncommon", copyable=False)
+        super().__init__(name="Smeared Joker", description="Hearts and Diamonds count as the same suit, Spades and Clubs count as the same suit", rarity="Uncommon", buy_price=7, copyable=False)
+class Showman(Joker):
+    def __init__(self):
+        super().__init__(name="Showman", description="Joker, Tarot, Planet, and Spectral cards may appear multiple times", rarity="Uncommon", buy_price=5, copyable=False)
 class OopsAllSixes(Joker):
     def __init__(self):
-        super().__init__(name="Oops! All 6s", description="Doubles all listed probabilities", rarity="Uncommon", copyable=False)
+        super().__init__(name="Oops! All 6s", description="Doubles all listed probabilities", rarity="Uncommon", buy_price=4, copyable=False)
     def trigger(self, event):
         if event == "passive":
             state.OOPS_ALL_SIXES = 0
@@ -1105,7 +1123,7 @@ class OopsAllSixes(Joker):
                     state.OOPS_ALL_SIXES += 1
 class Drunkard(Joker):
     def __init__(self):
-        super().__init__(name="Drunkard", description="+1 discard each round", rarity="Common", copyable=False)
+        super().__init__(name="Drunkard", description="+1 discard each round", rarity="Common", buy_price=4, copyable=False)
     def trigger(self, event):
         global drunkards
         if event == "passive":
@@ -1132,19 +1150,93 @@ class Drunkard(Joker):
         state.DISCARDS += drunkards
         state.STARTING_DISCARDS += drunkards
 
-# Map ArUco IDs (0-250) to their respective Joker classes
+# Map ArUco IDs (0-149) to Joker classes in the order of the supplied Joker list.
+# IDs are 0-based: 0 = Joker, 1 = Greedy Joker, ..., 149 = Chicot.
+# Only Joker classes implemented in this file are mapped; unimplemented entries retain no mapping.
 ARUCO_TO_JOKER = {
-    0: BasicJoker,       1: Brainstorm,      2: Burglar,        3: BasicJoker,
-    4: JollyJoker,      5: JollyJoker,       6: ZanyJoker,       7: Blueprint,
-    8: Brainstorm,      9: SlyJoker,       10: WilyJoker,     11: CleverJoker,
-    12: DeviousJoker,  13: CraftyJoker,    14: HalfJoker,     15: Banner,
-    16: MysticSummit,  17: Misprint,       18: LoyaltyCard,   19: JokerStencil,
-    20: AbstractJoker, 21: Supernova,      22: GrosMichel,    23: RideTheBus,
-    24: SpaceJoker,    25: GreenJoker,     26: SquareJoker,   27: Obelisk,
-    28: GreedyJoker,   29: LustyJoker,     30: WrathfulJoker, 31: GluttonousJoker,
-    32: Fibonacci,     33: ScaryFace,      34: EvenSteven,    35: OddTodd
+    0: BasicJoker,
+    1: GreedyJoker,
+    2: LustyJoker,
+    3: WrathfulJoker,
+    4: GluttonousJoker,
+    5: JollyJoker,
+    6: ZanyJoker,
+    7: MadJoker,
+    8: CrazyJoker,
+    9: DrollJoker,
+    10: SlyJoker,
+    11: WilyJoker,
+    12: CleverJoker,
+    13: DeviousJoker,
+    14: CraftyJoker,
+    15: HalfJoker,
+    16: JokerStencil,
+    17: FourFingers,
+    21: Banner,
+    22: MysticSummit,
+    26: Misprint,
+    27: Dusk,
+    30: Fibonacci,
+    32: ScaryFace,
+    33: AbstractJoker,
+    34: DelayedGratification,
+    35: Hack,
+    36: Pareidolia,
+    37: GrosMichel,
+    38: EvenSteven,
+    39: OddTodd,
+    40: Scholar,
+    41: BusinessCard,
+    42: Supernova,
+    43: RideTheBus,
+    44: SpaceJoker,
+    46: Burglar,
+    49: IceCream,
+    51: Splash,
+    57: GreenJoker,
+    59: ToDoList,
+    60: Cavendish,
+    61: CardSharp,
+    64: SquareJoker,
+    68: Shortcut,
+    73: Rocket,
+    74: Obelisk,
+    77: Photograph,
+    83: ToTheMoon,
+    87: Drunkard,
+    89: GoldenJoker,
+    91: BaseballCard,
+    92: Bull,
+    96: Popcorn,
+    97: SpareTrousers,
+    98: AncientJoker,
+    100: WalkieTalkie,
+    101: Seltzer,
+    103: SmileyFace,
+    106: MrBones,
+    107: Acrobat,
+    108: SockAndBuskin,
+    112: SmearedJoker,
+    113: Throwback,
+    114: HangingChad,
+    115: RoughGem,
+    116: Bloodstone,
+    117: Arrowhead,
+    118: OnyxAgate,
+    120: Showman,
+    121: FlowerPot,
+    122: Blueprint,
+    123: WeeJoker,
+    125: OopsAllSixes,
+    130: TheDuo,
+    131: TheTrio,
+    132: TheFamily,
+    133: TheOrder,
+    134: TheTribe,
+    137: Brainstorm,
+    144: Bootstraps,
+    146: Triboulet,
 }
-
 # This keeps Jokers in memory so they don't lose their stacks/mults between photos
 persisted_jokers = {}
 

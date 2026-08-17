@@ -14,6 +14,8 @@ from game.stakes import next_stake, apply_stake
 from game.blinds import calculate_blinds
 from game.scoring import evaluate_hand
 from game.jokers import trigger_jokers, joker_check, sync_jokers, MrBones, ToTheMoon
+from game.consumables import sync_consumables
+# from game.consumables import sync_consumables
 
 IMAGE_PATH = "hardware/board.jpg"
 WEIGHTS_PATH = "hardware/weights/poker_best.pt"
@@ -77,23 +79,36 @@ def run_game(detector):
                 state.SCORE_SUM = 0
                 state.HANDS = state.STARTING_HANDS
                 state.DISCARDS = state.STARTING_DISCARDS
+                print("Snapping photo of the board...")
+                joker_ids, consumable_ids, state.PLAYED_CARDS = detector.detect(IMAGE_PATH) 
+                sync_jokers(joker_ids)
+                sync_consumables(consumable_ids)
+                hand = format_cards(state.PLAYED_CARDS)
+                joker_names = [j.name for j in state.JOKERS]
+                consumable_names = [c.name for c in state.CONSUMABLES]
+                print(f"Jokers Detected (L to R): {', '.join(joker_names)}")
+                print(f"Consumables Detected (L to R): {', '.join(consumable_names)}")
+                print(f"Played Cards Detected (L to R): {', '.join(hand)}")
                 trigger_jokers("start_of_blind")
                 while state.SCORE_SUM < state.SCORE_TARGET and state.GAMESTATE == state.GameState.game_play:
                     while state.INPUT == None:
                         state.INPUT = get_button_press()
                     if state.INPUT == "Play":
                         print("Playing hand...\n")
+                        print("Snapping photo of the board...")
+                        # capture_image(IMAGE_PATH, camera_index=VIDEO_INDEX)
+                        joker_ids, consumable_ids, state.PLAYED_CARDS = detector.detect(IMAGE_PATH) 
+                        sync_jokers(joker_ids)
+                        sync_consumables(consumable_ids)
+                        hand = format_cards(state.PLAYED_CARDS)
+                        joker_names = [j.name for j in state.JOKERS]
+                        consumable_names = [c.name for c in state.CONSUMABLES]
+                        print(f"Jokers Detected (L to R): {', '.join(joker_names)}")
+                        print(f"Consumables Detected (L to R): {', '.join(consumable_names)}")
+                        print(f"Played Cards Detected (L to R): {', '.join(hand)}")
+
                         state.HANDS -= 1
                         print(f"Hands Remaining: {state.HANDS}")
-                        print("Snapping photo of the board...")
-                        capture_image(IMAGE_PATH, camera_index=VIDEO_INDEX)
-                        # Detect the cards
-                        aruco_ids, state.PLAYED_CARDS = detector.detect(IMAGE_PATH) 
-                        #sync_jokers(aruco_ids)
-                        hand = format_cards(state.PLAYED_CARDS)
-                        #joker_names = [j.name for j in state.JOKERS]
-                        #print(f"Jokers Detected (L to R): {', '.join(joker_names)}")
-                        print(f"Played Cards Detected (L to R): {', '.join(hand)}")
                         # Evaluate and score
                         evaluate_hand(state.PLAYED_CARDS)
                         print(f"Hand Detected: {state.HAND_TYPE}")

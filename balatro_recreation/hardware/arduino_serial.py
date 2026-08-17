@@ -78,3 +78,10 @@ def mult_mult(multmult):
     command = f"SET MULT {formatted_mult}\n"
     arduino.write(command.encode('utf-8'))
     wait_for_arduino()
+
+def add_money(money):
+    state.MONEY += money
+    formatted_money = format_balatro_number(state.MONEY)
+    command = f"SET MONEY {formatted_money}\n"
+    arduino.write(command.encode('utf-8'))
+    wait_for_arduino()

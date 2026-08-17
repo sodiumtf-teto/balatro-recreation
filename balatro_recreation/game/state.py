@@ -10,7 +10,7 @@ from game.jokers import CardSharp, Madness, ToTheMoon, GoldenJoker, BaseballCard
 from game.jokers import Popcorn, IceCream, SpareTrousers, AncientJoker, WalkieTalkie, Seltzer
 from game.jokers import Throwback, RoughGem, Arrowhead, Bloodstone, OnyxAgate, SmearedJoker
 from game.jokers import TheDuo, TheTrio, TheFamily, TheOrder, TheTribe, WeeJoker, OopsAllSixes
-from game.jokers import Drunkard, Triboulet, Bootstraps, SockAndBuskin
+from game.jokers import Drunkard, Triboulet, Bootstraps, SockAndBuskin, FlowerPot
 
 # Game state enumeration
 class GameState(IntEnum):
@@ -21,6 +21,7 @@ class GameState(IntEnum):
     cash_out = 4
     shop = 5
     lose = 6
+    booster_pack = 7
 
 GAMESTATE = GameState.deck_select
 DECK = "white"
@@ -61,6 +62,8 @@ CARD_ORDER = 0
 NUM_CARDS = 0
 CARD_RANK = None
 CARD_SUIT = None
+CARD_ENHANCEMENT = None
+CARD_EDITION = None
 IS_FACE = None
 SCORED_CARDS = None
 STARTING_DISCARDS = 3
@@ -74,10 +77,14 @@ ETERNAL_CHANCE = 0.0
 PERISHABLE_CHANCE = 0.0
 RENTAL_CHANCE = 0.0
 ANTE = 1
+JOKERS = []  # List of active jokers in the game
 MAX_JOKER_SLOTS = 5
-JOKERS = [Triboulet(), Triboulet(), SockAndBuskin(), SockAndBuskin(), Triboulet()]  # List of active jokers in the game
-OOPS_ALL_SIXES = 0
 FILLED_JOKER_SLOTS = len(JOKERS)
+CONSUMABLES = []
+MAX_CONSUMABLE_SLOTS = 2
+FILLED_CONSUMABLE_SLOTS = len(CONSUMABLES)
+LAST_USED_CONSUMABLE = None
+OOPS_ALL_SIXES = 0
 RETRIGGERS = 0
 MAX_INTEREST = 5
 SKIPPED_BLINDS = 0

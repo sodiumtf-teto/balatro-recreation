@@ -21,13 +21,6 @@ def parse_card(card_str):
     return card_str[0], card_str[1:]
 
 def is_suit(card_suit, target_suit):
-    """
-    Checks whether a card's actual suit counts as target_suit.
-
-    state.CARD_SUIT should always retain the card's actual suit.
-    This function only handles suit equivalence/modifiers.
-    """
-
     card_suit = card_suit.upper()
     target_suit = target_suit.upper()
 
@@ -35,9 +28,11 @@ def is_suit(card_suit, target_suit):
     if card_suit == target_suit:
         return True
 
-    # Smeared Joker:
-    # Hearts and Diamonds count as the same suit.
-    # Spades and Clubs count as the same suit.
+    # Wild Card: counts for all four suits
+    if state.CARD_ENHANCEMENT == "W":
+        return True
+
+    # Smeared Joker: H==D, S==C
     if any(isinstance(j, SmearedJoker) for j in state.JOKERS):
         if {card_suit, target_suit} <= {"H", "D"}:
             return True
