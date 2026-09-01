@@ -13,18 +13,16 @@ def init_serial():
     arduino = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=1)
     time.sleep(1)  # Wait for the serial connection to initialize
     
-
-# Get button press
+# Waits for a button press
 def get_button_press():
-    # Check serial for either "Play" or "Discard"
-    data = None
-    while(arduino.in_waiting > 0):
-        data = arduino.readline().decode('utf-8').strip()
-    if data == 'Play':
-        return "Play"
-    elif data == 'Discard':
-        return "Discard"
-    time.sleep(0.01)
+    while True:
+        if arduino.in_waiting > 0:
+            data = arduino.readline().decode('utf-8').strip()
+            if data == 'Play':
+                return "Play"
+            elif data == 'Discard':
+                return "Discard"
+        time.sleep(0.01)
 
 # Waits for arduino as to not cause serial issues
 def wait_for_arduino():

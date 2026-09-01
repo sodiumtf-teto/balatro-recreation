@@ -138,7 +138,7 @@ void updateServos() {
         anims[i].lastTime = now; // Reset timer for next phase
         
         if (anims[i].phase == 1) {
-          setTiltAngle(anims[i].servoNum, 45);
+          setTiltAngle(anims[i].servoNum, 20);
           anims[i].phase = 2;
         } 
         else if (anims[i].phase == 2) {

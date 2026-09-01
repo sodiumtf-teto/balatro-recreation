@@ -12,7 +12,7 @@ from game.jokers import Throwback, RoughGem, Arrowhead, Bloodstone, OnyxAgate, S
 from game.jokers import TheDuo, TheTrio, TheFamily, TheOrder, TheTribe, WeeJoker, OopsAllSixes
 from game.jokers import Drunkard, Triboulet, Bootstraps, SockAndBuskin, FlowerPot
 
-# Game state enumeration
+# Game State
 class GameState(IntEnum):
     deck_select = 0
     stake_select = 1
@@ -22,22 +22,37 @@ class GameState(IntEnum):
     shop = 5
     lose = 6
     booster_pack = 7
-
 GAMESTATE = GameState.deck_select
+
+# Computer Vision Variables
+PLAYED_CARDS = None
+PLAYED_JOKERS = None
+PLAYED_CONSUMABLES = None
+HELD_CARDS = None
+PREV_HELD_CONSUMABLES = []
+PREV_HELD_JOKERS = []
+
+# Input Variables
+INPUT = None
+
+# Game Configuration
 DECK = "white"
 STAKE = "white"
+
+# Blind Select Variables
+ANTE = 1
+
+CURRENT_BLIND = "small"
+CURRENT_BLIND_MONEY = 0
+SCORE_TARGET = 0
+
 SMALL_BLIND_MONEY = 3
 BIG_BLIND_MONEY = 4
 BOSS_BLIND_MONEY = 5
-CHIPS = 0
-MULT = 0
-SCORE = 0
-SCORE_SUM = 0
-SCORE_SCALING = 0
-SCORE_TARGET = 0
 SMALL_BLIND_SCORE = 0
 BIG_BLIND_SCORE = 0
 BOSS_BLIND_SCORE = 0
+
 WHITE_STAKE_ANTE_SCORE = {
     0: 200, 1: 600, 2: 1600, 3: 4000, 4: 10000, 5: 22000, 6: 40000, 7: 70000, 8: 100000
 }
@@ -47,46 +62,83 @@ GREEN_STAKE_ANTE_SCORE = {
 PURPLE_STAKE_ANTE_SCORE = {
     0: 200, 1: 600, 2: 2000, 3: 6400, 4: 18000, 5: 50000, 6: 120000, 7: 220000, 8: 400000
 }
+
+SCORE_SCALING = 0
 ANTE_SCORE = WHITE_STAKE_ANTE_SCORE
 ANTE_SCORE_MULTIPLIER = 1.0
-CURRENT_BLIND = "small"
-CURRENT_BLIND_MONEY = 0
+
+# Game Play Variables
+CHIPS = 0
+MULT = 0
+
+SCORE = 0
+SCORE_SUM = 0
+
 STARTING_HANDS = 4
 HANDS = STARTING_HANDS
+STARTING_DISCARDS = 3
+DISCARDS = STARTING_DISCARDS
+
 HAND_TYPE = None
 IS_HAND = ["None", "None"]
-PLAYED_CARDS = None
-HELD_CARDS = None
+
 SCORED_CARDS = None
-CARD_ORDER = 0
-NUM_CARDS = 0
+
+PLAYED_CARD_ORDER = 0
+HELD_CARD_ORDER = 0
+DISCARD_CARD_ORDER = 0
+
 CARD_RANK = None
 CARD_SUIT = None
 CARD_ENHANCEMENT = None
 CARD_EDITION = None
 IS_FACE = None
-SCORED_CARDS = None
-STARTING_DISCARDS = 3
-DISCARDS = STARTING_DISCARDS
+
+RETRIGGERS = 0
+
+# Cash Out / Money Variables
 STARTING_MONEY = 4
-MONEY = 0
+MONEY = STARTING_MONEY
 MONEY_GAIN = 0
-INPUT = None
-BONED = False
+MAX_INTEREST = 5
+
+# Shop Variables
+BASE_REROLL_COST = 5
+REROLL_COST = BASE_REROLL_COST
+
+DISCOUNT = 0.00
+NUM_VOUCHERS = 1
+NUM_SHOP_SLOTS = 2
+
 ETERNAL_CHANCE = 0.0
 PERISHABLE_CHANCE = 0.0
-RENTAL_CHANCE = 0.0
-ANTE = 1
-JOKERS = []  # List of active jokers in the game
+RENTAL_CHANCE = 0.01
+
+SHOP_SLOTS = []
+VOUCHER_SLOTS = []
+BOOSTER_PACK_SLOTS = []
+
+JOKER_WEIGHT = 20
+TAROT_WEIGHT = 4
+PLANET_WEIGHT = 4
+CARD_WEIGHT = 0
+SPECTRAL_WEIGHT = 0
+TOTAL_WEIGHT = JOKER_WEIGHT + TAROT_WEIGHT + PLANET_WEIGHT + CARD_WEIGHT + SPECTRAL_WEIGHT
+
+# Joker Variables
+JOKERS = [] 
 MAX_JOKER_SLOTS = 5
 FILLED_JOKER_SLOTS = len(JOKERS)
+
+# Consumable Variables
 CONSUMABLES = []
 MAX_CONSUMABLE_SLOTS = 2
 FILLED_CONSUMABLE_SLOTS = len(CONSUMABLES)
 LAST_USED_CONSUMABLE = None
+
+# Miscellaneous Variables
+BONED = False
 OOPS_ALL_SIXES = 0
-RETRIGGERS = 0
-MAX_INTEREST = 5
 SKIPPED_BLINDS = 0
 
 # Game variables

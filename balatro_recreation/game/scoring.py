@@ -1,61 +1,45 @@
 from collections import Counter
+from itertools import combinations
 from game import state
 from game.jokers import Splash, FourFingers, Shortcut, Pareidolia, SmearedJoker, trigger_jokers, joker_check
 from hardware.arduino_serial import activate_scored_card, start_scoring_phase, add_mult, add_chips
-
-RANK_VALUES = {
-    '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
-    'J': 10, 'Q': 10, 'K': 10, 'A': 11
-}
 
 # Standard Ace-high ranking
 RANK_ORDER_HIGH = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
 # Ace-low ranking (Ace acts as 1)
 RANK_ORDER_LOW = {'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13}
         
-def parse_card(card_str):
-    if not card_str:
-        return '', ''
-    if card_str.startswith('10'):
-        return '10', card_str[2:]
-    return card_str[0], card_str[1:]
+def is_suit(card, target_suit):
+    """Evaluates if a card object matches a specific suit, accounting for Jokers and Enhancements."""
+    # Safely extract the suit attribute if an object is passed
+    card_suit = getattr(card, 'suit', card) 
 
-def is_suit(card_suit, target_suit):
-    card_suit = card_suit.upper()
-    target_suit = target_suit.upper()
-
-    # Normal suit
+    # Normal suit match
     if card_suit == target_suit:
         return True
 
-    # Wild Card: counts for all four suits
-    if state.CARD_ENHANCEMENT == "W":
+    # Wild Card enhancement
+    if getattr(card, 'enhancement', None) == "Wild" or getattr(state, 'CARD_ENHANCEMENT', None) == "Wild":
         return True
 
     # Smeared Joker: H==D, S==C
     if any(isinstance(j, SmearedJoker) for j in state.JOKERS):
-        if {card_suit, target_suit} <= {"H", "D"}:
+        if {card_suit, target_suit} <= {"Hearts", "Diamonds"}:
             return True
-        if {card_suit, target_suit} <= {"S", "C"}:
+        if {card_suit, target_suit} <= {"Spades", "Clubs"}:
             return True
 
     return False
 
 def evaluate_hand(hand):
     if not hand:
-        state.NUM_CARDS = 0
         state.HAND_TYPE = "None"
         state.SCORE = 0
         return "None"
 
-    state.NUM_CARDS = len(hand)
-
-    parsed = [parse_card(card) for card in hand]
-    ranks = [r for r, s in parsed]
-    suits = [s for r, s in parsed]
-    
+    # Extract directly from objects
+    ranks = [card.rank for card in hand]
     rank_counts = Counter(ranks)
-    suit_counts = Counter(suits)
     
     has_four_fingers = joker_check(FourFingers)
     has_shortcut = joker_check(Shortcut)
@@ -66,8 +50,6 @@ def evaluate_hand(hand):
     # --- Check Straight (Supporting Ace-High, Ace-Low, and Shortcut Gaps) ---
     is_straight = False
     straight_cards = []
-
-    from itertools import combinations
 
     def test_straight(rank_list, order_dict):
         if len(rank_list) < target_straight_len:
@@ -100,11 +82,8 @@ def evaluate_hand(hand):
     is_flush = False
     flush_suit = None
 
-    for target_suit in ["H", "D", "S", "C"]:
-        matching_cards = [
-            (r, s) for r, s in parsed
-            if is_suit(s, target_suit)
-        ]
+    for target_suit in ["Hearts", "Diamonds", "Spades", "Clubs"]:
+        matching_cards = [card for card in hand if is_suit(card, target_suit)]
 
         if len(matching_cards) >= min_flush_cards:
             is_flush = True
@@ -175,11 +154,16 @@ def evaluate_hand(hand):
     # Mark scoring cards
     state.SCORED_CARDS = []
     if state.HAND_TYPE in ["Flush", "Straight", "Straight Flush"]:
-        state.SCORED_CARDS = hand
+        # In a perfect Balatro clone, a Flush with Four Fingers on a 5-card hand 
+        # only scores the 4 suited cards unless Splash is present. I left this as 
+        # `list(hand)` to match your original logic, but keep that edge case in mind!
+        state.SCORED_CARDS = list(hand) 
     elif scoring_ranks:
-        state.SCORED_CARDS = [c for c, (r, s) in zip(hand, parsed) if r in scoring_ranks]
+        state.SCORED_CARDS = [card for card in hand if card.rank in scoring_ranks]
+        # Ensures that only the true High Card is scored rather than the first card in the array
         if state.HAND_TYPE == "High Card" and state.SCORED_CARDS:
-            state.SCORED_CARDS = [state.SCORED_CARDS[0]]
+            highest_rank = unique_ranks_high_sorted[-1]
+            state.SCORED_CARDS = [next(card for card in hand if card.rank == highest_rank)]
 
     trigger_jokers("before_hand_played")
     trigger_jokers("before_hand_played_blueprint")
@@ -192,34 +176,19 @@ def evaluate_hand(hand):
     add_mult(0)
     
     if joker_check(Splash):
-        state.SCORED_CARDS = hand
+        state.SCORED_CARDS = list(hand)
 
     for card in state.SCORED_CARDS:
-        state.CARD_ORDER += 1
-        r, s = parse_card(card)
-        if not r:
-            continue
-        state.CARD_RANK = r.upper()
-        state.CARD_SUIT = s.upper()
-        if state.CARD_RANK in ["J", "Q", "K"] or joker_check(Pareidolia):
-            state.IS_FACE = True
-        else:
-            state.IS_FACE = False
         card_num = hand.index(card)
-        retrigger_joker = 0
-        while state.RETRIGGERS >= 0:
-            add_chips(RANK_VALUES.get(r, 0))
-            activate_scored_card(card_num)
-            trigger_jokers("on_card_score")
-            trigger_jokers("on_card_score_blueprint")
-            state.RETRIGGERS -= 1
-            while state.RETRIGGERS < 0 and retrigger_joker < state.FILLED_JOKER_SLOTS:
-                state.JOKERS[retrigger_joker].trigger("retriggers")
-                retrigger_joker += 1
-        state.RETRIGGERS = 0
+        card.trigger(card_num)
 
     trigger_jokers("after_hand_played_pre")
     trigger_jokers("after_hand_played_pre_blueprint")
+
+    for card in state.HELD_CARDS:
+        card.trigger_held()
+    state.HELD_CARD_NUM = 0
+
     trigger_jokers("after_hand_played_main")
     trigger_jokers("after_hand_played_post")
     trigger_jokers("after_hand_played_post_blueprint")
@@ -228,5 +197,4 @@ def evaluate_hand(hand):
 
     state.IS_HAND.clear()
     state.IS_HAND = ["None", "None"]
-    state.NUM_CARDS = 0
     state.CARD_ORDER = 0

@@ -50,4 +50,3 @@ def format_balatro_number(value):
 
     r_str = str(rounded)
     return f"{r_str[0]}.{r_str[1:]}{exp_str}"
-
