@@ -20,22 +20,11 @@ class Card:
     def print_trigger(self, message):
         print(f"Card Scored! '{self.name}' {message}")
         
-    def trigger(self, card_num):
-        """Handles all logic for when this specific card is scored."""
-        state.PLAYED_CARD_ORDER += 1
-        state.CARD_RANK = self.rank
-        state.CARD_SUIT = self.suit
-        
-        # Check for face cards (incorporating Pareidolia check)
-        if state.CARD_RANK in ["J", "Q", "K"] or joker_check(Pareidolia):
-            state.IS_FACE = True
-        else:
-            state.IS_FACE = False
-            
+    def trigger(self):
         retrigger_joker = 0
         while state.RETRIGGERS >= 0:
             add_chips(RANK_VALUES.get(self.rank.upper(), 0))
-            activate_scored_card(card_num)
+            activate_scored_card()
             trigger_jokers("on_card_score")
             trigger_jokers("on_card_score_blueprint")
             
@@ -70,16 +59,6 @@ class Card:
         state.RETRIGGERS = 0
 
     def trigger_discard(self):
-        state.DISCARD_CARD_ORDER += 1
-        state.CARD_RANK = self.rank
-        state.CARD_SUIT = self.suit
-
-        # Check for face cards (incorporating Pareidolia check)
-        if state.CARD_RANK in ["J", "Q", "K"] or joker_check(Pareidolia):
-            state.IS_FACE = True
-        else:
-            state.IS_FACE = False
-
         trigger_jokers("discard_per_card")
 
 ARUCO_TO_CARD = {}

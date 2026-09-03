@@ -22,6 +22,8 @@ def trigger_jokers(event):
     ):
         reset_tilt_speed()
     for joker in state.JOKERS:
+        if state.DISABLED_JOKER is not None and joker is state.DISABLED_JOKER:
+            continue  # Skip triggering the disabled Joker
         joker.trigger(event)
 
 def joker_check(joker):
@@ -65,30 +67,52 @@ class Joker:
 def resolve_copy_chain(start_joker):
     visited = set()
     chain = []
+
     current = start_joker
-    
+
     while current is not None:
-        # Track by object id() instead of the object instance to avoid unhashable errors
+        # Track by object id() instead of the object instance
+        # to avoid unhashable errors and detect cycles.
         if id(current) in visited:
-            return None, []  # Infinite loop detected, break cycle
+            return None, []
+
         visited.add(id(current))
-        
+
+        # A disabled Joker cannot be copied through.
+        if state.DISABLED_JOKER is current:
+            return None, []
+
         if isinstance(current, (Blueprint, Brainstorm)):
             chain.append(current.name)
+
             if isinstance(current, Blueprint):
                 try:
-                    idx = next(i for i, j in enumerate(state.JOKERS) if j is current)
-                    current = state.JOKERS[idx + 1] if idx + 1 < len(state.JOKERS) else None
+                    idx = next(
+                        i for i, j in enumerate(state.JOKERS)
+                        if j is current
+                    )
+                    current = (
+                        state.JOKERS[idx + 1]
+                        if idx + 1 < len(state.JOKERS)
+                        else None
+                    )
                 except (StopIteration, AttributeError):
                     current = None
+
             elif isinstance(current, Brainstorm):
-                current = state.JOKERS[0] if len(state.JOKERS) > 0 else None
+                current = (
+                    state.JOKERS[0]
+                    if len(state.JOKERS) > 0
+                    else None
+                )
         else:
             break
-            
+    # No valid final target, or target cannot be copied.
     if current is None or not current.copyable:
         return None, []
-        
+    # Also check the final target itself.
+    if state.DISABLED_JOKER is current:
+        return None, []
     return current, chain
 
 def get_copy_prefix(caller_name, chain, target_name):
@@ -144,7 +168,7 @@ class Brainstorm(Joker):
                     left_joker = state.JOKERS[0]
                     if left_joker is not self:
                         target, chain = resolve_copy_chain(left_joker)
-                        
+
                         if target is not None:
                             original_tilt = target.tilt
                             original_print = target.print_trigger
@@ -459,7 +483,7 @@ class SpaceJoker(Joker):
     def __init__(self):
         super().__init__(name="Space Joker", description=f"1 in 4 chance to upgrade level of played poker hand", rarity="Uncommon", buy_price=5)
     def trigger(self, event):
-        if event == "after_hand_played_pre" and random.randint(0,3) + 2**state.OOPS_ALL_SIXES > 3:
+        if event == "before_hand_played_blueprint" and random.randint(0,3) + 2**state.OOPS_ALL_SIXES > 3:
             hand_levelup(state.HAND_TYPE)
             self.print_trigger(f"levels up {state.HAND_TYPE} to level {state.HAND_LEVELS[state.HAND_TYPE]}")
             self.tilt()

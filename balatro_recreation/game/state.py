@@ -1,16 +1,10 @@
 from enum import IntEnum
-from game.jokers import BasicJoker, Hack, LustyJoker, Splash, JollyJoker, GreedyJoker 
-from game.jokers import GluttonousJoker, WrathfulJoker, SlyJoker, DrollJoker, MadJoker 
-from game.jokers import CrazyJoker, WilyJoker, CleverJoker, HalfJoker, Banner, LoyaltyCard
-from game.jokers import Misprint, Dusk, Blueprint, Brainstorm, JokerStencil, Fibonacci
-from game.jokers import Shortcut, FourFingers, ScaryFace, AbstractJoker, DelayedGratification
-from game.jokers import Supernova, RideTheBus, SpaceJoker, GreenJoker, ToDoList, SquareJoker
-from game.jokers import Rocket, Obelisk, Photograph, HangingChad, MrBones, GrosMichel, Cavendish
-from game.jokers import CardSharp, Madness, ToTheMoon, GoldenJoker, BaseballCard, Burglar, Bull
-from game.jokers import Popcorn, IceCream, SpareTrousers, AncientJoker, WalkieTalkie, Seltzer
-from game.jokers import Throwback, RoughGem, Arrowhead, Bloodstone, OnyxAgate, SmearedJoker
-from game.jokers import TheDuo, TheTrio, TheFamily, TheOrder, TheTribe, WeeJoker, OopsAllSixes
-from game.jokers import Drunkard, Triboulet, Bootstraps, SockAndBuskin, FlowerPot
+
+from game.blinds import (
+    VioletVessel, TheWater, TheManacle, CrimsonHeart, TheNeedle, CeruleanBell, VerdantLeaf,
+    TheFlint, TheMark, TheHead, TheTooth, TheGoad, TheClub, ThePlant, TheWindow, ThePillar,
+    TheSerpent, TheMouth, TheEye, ThePsychic, TheArm, TheWheel, TheOx, TheHook
+)
 
 # Game State
 class GameState(IntEnum):
@@ -25,10 +19,12 @@ class GameState(IntEnum):
 GAMESTATE = GameState.deck_select
 
 # Computer Vision Variables
-PLAYED_CARDS = None
-PLAYED_JOKERS = None
-PLAYED_CONSUMABLES = None
-HELD_CARDS = None
+PLAYED_CARDS = []
+PLAYED_JOKERS = []
+PLAYED_CONSUMABLES = []
+PLAYED_BOOSTER_PACKS = []
+PLAYED_VOUCHERS = []
+HELD_CARDS = []
 PREV_HELD_CONSUMABLES = []
 PREV_HELD_JOKERS = []
 
@@ -45,6 +41,9 @@ ANTE = 1
 CURRENT_BLIND = "small"
 CURRENT_BLIND_MONEY = 0
 SCORE_TARGET = 0
+
+BOSS_BLIND = TheHook()
+PLAYED_BOSS_BLINDS = []
 
 SMALL_BLIND_MONEY = 3
 BIG_BLIND_MONEY = 4
@@ -78,11 +77,16 @@ STARTING_HANDS = 4
 HANDS = STARTING_HANDS
 STARTING_DISCARDS = 3
 DISCARDS = STARTING_DISCARDS
+STARTING_HAND_SIZE = 8
+HAND_SIZE = STARTING_HAND_SIZE
+
 
 HAND_TYPE = None
 IS_HAND = ["None", "None"]
+SKIP_HAND = False
 
-SCORED_CARDS = None
+SCORED_CARDS = []
+DEBUFFED_CARDS = []
 
 PLAYED_CARD_ORDER = 0
 HELD_CARD_ORDER = 0
@@ -118,12 +122,26 @@ SHOP_SLOTS = []
 VOUCHER_SLOTS = []
 BOOSTER_PACK_SLOTS = []
 
+FIRST_SHOP_VISIT = True
+SHOP_VOUCHERS_ROLLED = False
+
 JOKER_WEIGHT = 20
 TAROT_WEIGHT = 4
 PLANET_WEIGHT = 4
 CARD_WEIGHT = 0
 SPECTRAL_WEIGHT = 0
-TOTAL_WEIGHT = JOKER_WEIGHT + TAROT_WEIGHT + PLANET_WEIGHT + CARD_WEIGHT + SPECTRAL_WEIGHT
+TOTAL_SHOP_WEIGHT = JOKER_WEIGHT + TAROT_WEIGHT + PLANET_WEIGHT + CARD_WEIGHT + SPECTRAL_WEIGHT
+
+def recalculate_shop_weights():
+    global TOTAL_SHOP_WEIGHT, TOTAL_BOOSTER_WEIGHT
+    TOTAL_SHOP_WEIGHT = JOKER_WEIGHT + TAROT_WEIGHT + PLANET_WEIGHT + CARD_WEIGHT + SPECTRAL_WEIGHT
+    
+STANDARD_PACK_WEIGHT = 4
+ARCANA_PACK_WEIGHT = 4
+CELESTIAL_PACK_WEIGHT = 4
+BUFFOON_PACK_WEIGHT = 1.2
+SPECTRAL_PACK_WEIGHT = 0.6
+TOTAL_BOOSTER_WEIGHT = STANDARD_PACK_WEIGHT + ARCANA_PACK_WEIGHT + CELESTIAL_PACK_WEIGHT + BUFFOON_PACK_WEIGHT + SPECTRAL_PACK_WEIGHT
 
 # Joker Variables
 JOKERS = [] 
@@ -136,7 +154,12 @@ MAX_CONSUMABLE_SLOTS = 2
 FILLED_CONSUMABLE_SLOTS = len(CONSUMABLES)
 LAST_USED_CONSUMABLE = None
 
+# Voucher Variables
+VOUCHERS = []
+
 # Miscellaneous Variables
+JOKER_SOLD = False
+DISABLED_JOKER = None
 BONED = False
 OOPS_ALL_SIXES = 0
 SKIPPED_BLINDS = 0

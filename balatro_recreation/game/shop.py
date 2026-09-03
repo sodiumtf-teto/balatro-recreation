@@ -2,9 +2,101 @@ from game import state
 import random
 
 def initialize_shop():
+    # Generate initial shop items
     reroll()
-    # Come back to set up booster packs and vouchers
-    # REMEMBER: 2 random Booster Packs (except for the first visit to any Shop in a run, where one normal Buffoon Pack is guaranteed)
+    # Generate booster packs and clear last booster packs
+    state.BOOSTER_PACK_SLOTS = []
+    generate_booster_packs()
+    # Generate voucher amd clear last voucher if first shop of ante
+    if not state.SHOP_VOUCHERS_ROLLED:
+        state.VOUCHER_SLOTS = []
+        state.SHOP_VOUCHERS_ROLLED = True
+        generate_voucher()
+
+def generate_booster_packs():
+    num_generated_booster_packs = 2
+    from game.booster_packs import (
+        ARUCO_TO_BOOSTER_PACK,
+        BuffoonPack,
+        StandardPack,
+        ArcanaPack,
+        CelestialPack,
+        SpectralPack,
+    )
+    if state.FIRST_SHOP_VISIT:
+        state.BOOSTER_PACK_SLOTS.append(BuffoonPack())
+        state.FIRST_SHOP_VISIT = False
+        num_generated_booster_packs -= 1
+
+    booster_options = [
+        StandardPack,
+        ArcanaPack,
+        CelestialPack,
+        BuffoonPack,
+        SpectralPack,
+    ]
+    booster_weights = [
+        state.STANDARD_PACK_WEIGHT,
+        state.ARCANA_PACK_WEIGHT,
+        state.CELESTIAL_PACK_WEIGHT,
+        state.BUFFOON_PACK_WEIGHT,
+        state.SPECTRAL_PACK_WEIGHT,
+    ]
+    for _ in range(num_generated_booster_packs):
+        booster_class = random.choices(
+            booster_options,
+            weights=booster_weights,
+            k=1
+        )[0]
+        state.BOOSTER_PACK_SLOTS.append(booster_class())
+
+def generate_voucher():
+    from game.vouchers import (
+        Overstock, OverstockPlus, ClearanceSale, Liquidation, Hone, GlowUp, RerollSurplus, RerollGlut,
+        CrystalBall, OmenGlobe, Telescope, Observatory, Grabber, NachoTong, Wasteful, Recyclomancy,
+        TarotMerchant, TarotTycoon, PlanetMerchant, PlanetTycoon, SeedMoney, MoneyTree, Blank, Antimatter,
+        MagicTrick, Illusion, Hieroglyph, Petroglyph, DirectorsCut, Retcon, PaintBrush, Palette,
+        voucher_check
+    )
+
+    # Each tuple is (Tier 1, Tier 2).
+    voucher_tiers = [
+        (Overstock, OverstockPlus),
+        (ClearanceSale, Liquidation),
+        (RerollSurplus, RerollGlut),
+        (CrystalBall, OmenGlobe),
+        (Telescope, Observatory),
+        (Grabber, NachoTong),
+        (Wasteful, Recyclomancy),
+        (TarotMerchant, TarotTycoon),
+        (PlanetMerchant, PlanetTycoon),
+        (SeedMoney, MoneyTree),
+        (Blank, Antimatter),
+        (Hieroglyph, Petroglyph),
+        (DirectorsCut, Retcon),
+        (PaintBrush, Palette),
+    ]
+
+    available_vouchers = []
+
+    for tier_1, tier_2 in voucher_tiers:
+        if not voucher_check(tier_1):
+            # Tier 1 hasn't been obtained yet, so it is available.
+            available_vouchers.append(tier_1)
+
+        elif not voucher_check(tier_2):
+            # Tier 1 has been obtained, so Tier 2 becomes available.
+            available_vouchers.append(tier_2)
+
+    # If there are still vouchers available, randomly choose one.
+    if available_vouchers:
+        selected_voucher = random.choice(available_vouchers)
+    else:
+        # Every voucher has been obtained.
+        selected_voucher = Blank
+
+    state.VOUCHER_SLOTS = [selected_voucher()]
+
 
 def reroll():
     from game.jokers import ARUCO_TO_JOKER, joker_check, Showman

@@ -46,8 +46,8 @@ def reset_tilt_speed():
     arduino.write(command.encode('utf-8'))
     wait_for_arduino() # Wait for the Arduino to reset its timer and reply "DONE"
 
-def activate_scored_card(card_num):
-    command = f"TILT CARD " + str(card_num + 1) + "\n"
+def activate_scored_card():
+    command = f"TILT CARD " + str(state.PLAYED_CARD_ORDER) + "\n"
     arduino.write(command.encode('utf-8'))
     wait_for_arduino()
 

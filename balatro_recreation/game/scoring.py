@@ -138,18 +138,19 @@ def evaluate_hand(hand):
         scoring_ranks = []
 
     # Populate state.IS_HAND matches
-    if 5 in rank_counts.values() and is_flush: state.IS_HAND.append("Flush Five")
-    if 3 in rank_counts.values() and 2 in rank_counts.values() and is_flush: state.IS_HAND.append("Flush House")
-    if 5 in rank_counts.values(): state.IS_HAND.append("Five of a Kind")
+    counts = list(rank_counts.values())
+    if any(c >= 5 for c in counts) and is_flush: state.IS_HAND.append("Flush Five")
+    if 3 in counts and 2 in counts and is_flush: state.IS_HAND.append("Flush House")
+    if any(c >= 5 for c in counts): state.IS_HAND.append("Five of a Kind")
     if is_straight_flush: state.IS_HAND.append("Straight Flush")
-    if 4 in rank_counts.values(): state.IS_HAND.append("Four of a Kind")
-    if 3 in rank_counts.values() and 2 in rank_counts.values(): state.IS_HAND.append("Full House")
+    if any(c >= 4 for c in counts): state.IS_HAND.append("Four of a Kind")
+    if 3 in counts and 2 in counts: state.IS_HAND.append("Full House")
     if is_flush: state.IS_HAND.append("Flush")
     if is_straight: state.IS_HAND.append("Straight")
-    if 3 in rank_counts.values(): state.IS_HAND.append("Three of a Kind")
-    if list(rank_counts.values()).count(2) == 2: state.IS_HAND.append("Two Pair")
-    if 2 in rank_counts.values(): state.IS_HAND.append("Pair")
-    if 1 in rank_counts.values(): state.IS_HAND.append("High Card")
+    if any(c >= 3 for c in counts): state.IS_HAND.append("Three of a Kind")
+    if sum(c // 2 for c in counts) >= 2: state.IS_HAND.append("Two Pair")
+    if any(c >= 2 for c in counts): state.IS_HAND.append("Pair")
+    if len(counts) > 0: state.IS_HAND.append("High Card")
 
     # Mark scoring cards
     state.SCORED_CARDS = []
@@ -165,36 +166,72 @@ def evaluate_hand(hand):
             highest_rank = unique_ranks_high_sorted[-1]
             state.SCORED_CARDS = [next(card for card in hand if card.rank == highest_rank)]
 
+    if state.BOSS_BLIND.name in {"Verdant Leaf", "The Tooth", "The Mouth", "The Eye", "The Psychic", "The Arm", "The Ox"} and state.CURRENT_BLIND == "boss":
+        state.BOSS_BLIND.trigger()
+
     trigger_jokers("before_hand_played")
     trigger_jokers("before_hand_played_blueprint")
 
-    state.CHIPS, state.MULT = state.HAND_SCORES[state.HAND_TYPE]
     state.TIMES_PLAYED[state.HAND_TYPE] += 1
 
-    start_scoring_phase()
-    add_chips(0) 
-    add_mult(0)
-    
-    if joker_check(Splash):
-        state.SCORED_CARDS = list(hand)
+    if not state.SKIP_HAND:
+        state.CHIPS, state.MULT = state.HAND_SCORES[state.HAND_TYPE]
 
-    for card in state.SCORED_CARDS:
-        card_num = hand.index(card)
-        card.trigger(card_num)
+        if state.BOSS_BLIND.name == "The Flint" and state.CURRENT_BLIND == "boss":
+            state.CHIPS //= 2
+            state.MULT //= 2
 
-    trigger_jokers("after_hand_played_pre")
-    trigger_jokers("after_hand_played_pre_blueprint")
+        start_scoring_phase()
+        add_chips(0) 
+        add_mult(0)
+        
+        if joker_check(Splash):
+            state.SCORED_CARDS = list(hand)
 
-    for card in state.HELD_CARDS:
-        card.trigger_held()
-    state.HELD_CARD_NUM = 0
+        for card in state.SCORED_CARDS:
+            state.PLAYED_CARD_ORDER += 1
+            state.CARD_RANK = card.rank
+            state.CARD_SUIT = card.suit
+            if state.CARD_RANK in ["J", "Q", "K"] or joker_check(Pareidolia):
+                state.IS_FACE = True
+            else:
+                state.IS_FACE = False
+            if state.BOSS_BLIND.name in {"The Plant", "The Head", "The Window", "The Goad", "The Club"} and state.CURRENT_BLIND == "boss":
+                state.BOSS_BLIND.trigger()
+            if card not in state.DEBUFFED_CARDS:
+                card.trigger()
+            else:
+                activate_scored_card()
+                print(f"Card '{card.name}' is debuffed and will not be scored.")
 
-    trigger_jokers("after_hand_played_main")
-    trigger_jokers("after_hand_played_post")
-    trigger_jokers("after_hand_played_post_blueprint")
-    
-    state.SCORE = state.CHIPS * state.MULT
+        trigger_jokers("after_hand_played_pre")
+        trigger_jokers("after_hand_played_pre_blueprint")
+
+        for card in state.HELD_CARDS:
+            state.HELD_CARD_ORDER += 1
+            state.CARD_RANK = card.rank
+            state.CARD_SUIT = card.suit
+            # Check for face cards (incorporating Pareidolia check)
+            if state.CARD_RANK in ["J", "Q", "K"] or joker_check(Pareidolia):
+                state.IS_FACE = True
+            else:
+                state.IS_FACE = False
+            if card not in state.DEBUFFED_CARDS:
+                card.trigger_held()
+
+        trigger_jokers("after_hand_played_main")
+        trigger_jokers("after_hand_played_post")
+        trigger_jokers("after_hand_played_post_blueprint")
+
+        if state.BOSS_BLIND.name in {"Crimson Heart", "Cerulean Bell", "The Fish", "The Hook"} and state.CURRENT_BLIND == "boss":
+            state.BOSS_BLIND.trigger()
+        
+        state.SCORE = state.CHIPS * state.MULT
+    else:
+        state.SCORE = 0
+        state.SKIP_HAND = False
 
     state.IS_HAND.clear()
     state.IS_HAND = ["None", "None"]
-    state.CARD_ORDER = 0
+    state.PLAYED_CARD_ORDER = 0
+    state.HELD_CARD_ORDER = 0
