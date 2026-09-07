@@ -1,11 +1,5 @@
 from enum import IntEnum
 
-from game.blinds import (
-    VioletVessel, TheWater, TheManacle, CrimsonHeart, TheNeedle, CeruleanBell, VerdantLeaf,
-    TheFlint, TheMark, TheHead, TheTooth, TheGoad, TheClub, ThePlant, TheWindow, ThePillar,
-    TheSerpent, TheMouth, TheEye, ThePsychic, TheArm, TheWheel, TheOx, TheHook
-)
-
 # Game State
 class GameState(IntEnum):
     deck_select = 0
@@ -21,6 +15,7 @@ GAMESTATE = GameState.deck_select
 # Computer Vision Variables
 PLAYED_CARDS = []
 PLAYED_JOKERS = []
+CONSUMABLES = []
 PLAYED_CONSUMABLES = []
 PLAYED_BOOSTER_PACKS = []
 PLAYED_VOUCHERS = []
@@ -42,7 +37,8 @@ CURRENT_BLIND = "small"
 CURRENT_BLIND_MONEY = 0
 SCORE_TARGET = 0
 
-BOSS_BLIND = TheHook()
+GENERATED_SKIP_TAGS = []
+BOSS_BLIND = None
 PLAYED_BOSS_BLINDS = []
 
 SMALL_BLIND_MONEY = 3
@@ -65,6 +61,14 @@ PURPLE_STAKE_ANTE_SCORE = {
 SCORE_SCALING = 0
 ANTE_SCORE = WHITE_STAKE_ANTE_SCORE
 ANTE_SCORE_MULTIPLIER = 1.0
+
+# Skip Tag Variables
+SKIP_TAGS = []
+COPIED_TAG = None
+UNUSED_DISCARDS = 0
+PLAYED_HANDS = 0
+GUARENTEED_JOKERS = []
+GUARENTEED_EDITIONS = []
 
 # Game Play Variables
 CHIPS = 0
@@ -101,7 +105,7 @@ IS_FACE = None
 RETRIGGERS = 0
 
 # Cash Out / Money Variables
-STARTING_MONEY = 4
+STARTING_MONEY = 400
 MONEY = STARTING_MONEY
 MONEY_GAIN = 0
 MAX_INTEREST = 5
@@ -135,7 +139,9 @@ TOTAL_SHOP_WEIGHT = JOKER_WEIGHT + TAROT_WEIGHT + PLANET_WEIGHT + CARD_WEIGHT + 
 def recalculate_shop_weights():
     global TOTAL_SHOP_WEIGHT, TOTAL_BOOSTER_WEIGHT
     TOTAL_SHOP_WEIGHT = JOKER_WEIGHT + TAROT_WEIGHT + PLANET_WEIGHT + CARD_WEIGHT + SPECTRAL_WEIGHT
-    
+
+CURRENT_PACK = None
+DROPOFF_POINT = GameState.blind_select
 STANDARD_PACK_WEIGHT = 4
 ARCANA_PACK_WEIGHT = 4
 CELESTIAL_PACK_WEIGHT = 4
@@ -149,7 +155,6 @@ MAX_JOKER_SLOTS = 5
 FILLED_JOKER_SLOTS = len(JOKERS)
 
 # Consumable Variables
-CONSUMABLES = []
 MAX_CONSUMABLE_SLOTS = 2
 FILLED_CONSUMABLE_SLOTS = len(CONSUMABLES)
 LAST_USED_CONSUMABLE = None
@@ -158,6 +163,7 @@ LAST_USED_CONSUMABLE = None
 VOUCHERS = []
 
 # Miscellaneous Variables
+REROLLED_BOSS = False
 JOKER_SOLD = False
 DISABLED_JOKER = None
 BONED = False

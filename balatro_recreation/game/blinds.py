@@ -3,17 +3,32 @@ from hardware.arduino_serial import add_money
 from . import state
 import random
 
+import math
+
+################################################
+# BOSS BLINDS              
+################################################
 def calculate_blinds():
-    # Endless
-    if state.ANTE > 8:
-        state.BOSS_BLIND_SCORE = int(state.ANTE_SCORE_MULTIPLIER * state.ANTE_SCORE[8] * (1.6 + (0.75 * (state.ANTE - 8))**(1.0+0.2*(state.ANTE - 8)))**(state.ANTE - 8))
-        state.BIG_BLIND_SCORE = int(state.BOSS_BLIND_SCORE * 0.75)
-        state.SMALL_BLIND_SCORE = int(state.BOSS_BLIND_SCORE * 0.5)
-    # Normal
-    else:
-        state.BOSS_BLIND_SCORE = int(state.ANTE_SCORE_MULTIPLIER * state.ANTE_SCORE[state.ANTE])
-        state.BIG_BLIND_SCORE = int(state.BOSS_BLIND_SCORE * 0.75)
-        state.SMALL_BLIND_SCORE = int(state.BOSS_BLIND_SCORE * 0.5)
+    try:
+        # Endless
+        if state.ANTE > 8:
+            boss_score = (
+                state.ANTE_SCORE_MULTIPLIER 
+                * state.ANTE_SCORE[8] 
+                * (1.6 + (0.75 * (state.ANTE - 8))**(1.0 + 0.2 * (state.ANTE - 8)))**(state.ANTE - 8)
+            )
+        # Normal
+        else:
+            boss_score = state.ANTE_SCORE_MULTIPLIER * state.ANTE_SCORE[state.ANTE]
+        # Check for overflow or infinity before casting to int
+        if math.isinf(boss_score) or boss_score > 1.79e308:
+            state.BOSS_BLIND_SCORE = float('inf')
+        else:
+            state.BOSS_BLIND_SCORE = int(boss_score)
+    except (OverflowError, ValueError):
+        state.BOSS_BLIND_SCORE = float('inf')
+    state.BIG_BLIND_SCORE = float('inf') if math.isinf(state.BOSS_BLIND_SCORE) else int(state.BOSS_BLIND_SCORE * 0.75)
+    state.SMALL_BLIND_SCORE = float('inf') if math.isinf(state.BOSS_BLIND_SCORE) else int(state.BOSS_BLIND_SCORE * 0.5)
 
 def select_boss_blind():
     from .blinds import (
@@ -23,20 +38,30 @@ def select_boss_blind():
         TheFlint, TheMark, AmberAcorn, VerdantLeaf, VioletVessel,
         CrimsonHeart, CeruleanBell
     )
-    # List of all boss blinds
-    all_blinds = [
+    normal_blinds = [
         TheHook(), TheOx(), TheHouse(), TheWall(), TheWheel(), TheArm(),
         TheClub(), TheFish(), ThePsychic(), TheGoad(), TheWater(),
         TheWindow(), TheManacle(), TheEye(), TheMouth(), ThePlant(),
-        TheSerpent(), VerdantLeaf(), VioletVessel(), CrimsonHeart(), 
-        CeruleanBell(), TheNeedle(), TheHead(), TheTooth(), TheFlint(), 
+        TheSerpent(), ThePillar(), TheNeedle(), TheHead(), TheTooth(),
+        TheFlint(), TheMark()
     ]
-    # Filter blinds based on the current ante
-    available_blinds = [blind for blind in all_blinds if blind.min_ante <= state.ANTE and blind.name not in [b.name for b in state.PLAYED_BOSS_BLINDS]]
-
-    # Randomly select a boss blind from the available options
-    if available_blinds:
-        state.BOSS_BLIND = random.choice(available_blinds)
+    showdown_blinds = [
+        AmberAcorn(), VerdantLeaf(), VioletVessel(), CrimsonHeart(), CeruleanBell()
+    ]
+    is_showdown = (state.ANTE > 0 and state.ANTE % 8 == 0)
+    target_pool = showdown_blinds if is_showdown else normal_blinds
+    available_blinds = [
+        blind for blind in target_pool 
+        if blind.min_ante <= state.ANTE and blind.name not in [b.name for b in state.PLAYED_BOSS_BLINDS]
+    ]
+    if not available_blinds:
+        target_names = {b.name for b in target_pool}
+        state.PLAYED_BOSS_BLINDS = [b for b in state.PLAYED_BOSS_BLINDS if b.name not in target_names]
+        available_blinds = [
+            blind for blind in target_pool 
+            if blind.min_ante <= state.ANTE and blind.name not in [b.name for b in state.PLAYED_BOSS_BLINDS]
+        ]
+    state.BOSS_BLIND = random.choice(available_blinds)
 
 class BossBlind:
     def __init__(self, name, description, min_ante):
@@ -139,7 +164,7 @@ class TheGoad(BossBlind):
 
 class TheWater(BossBlind):
     def __init__(self):
-        super().__init__(name="The Water", description="Start with 0 discards", min_ante=0)
+        super().__init__(name="The Water", description="Start with 0 discards", min_ante=2)
     def trigger(self):
         state.DISCARDS = 0
 
@@ -198,7 +223,7 @@ class TheSerpent(BossBlind):
 class ThePillar(BossBlind):
     def __init__(self):
         self.cards_played_this_ante = []
-        super().__init__(name="The Pillar", description="Cards played previously this Ante (during Small and Big Blinds) are debuffed", min_ante=0)
+        super().__init__(name="The Pillar", description="Cards played previously this Ante (during Small and Big Blinds) are debuffed", min_ante=2)
     def trigger(self):
         if state.CURRENT_BLIND in {"small", "big"}:
             self.cards_played_this_ante.append(list(state.PLAYED_CARDS))
@@ -277,3 +302,321 @@ class CeruleanBell(BossBlind):
     def trigger(self):
         state.FORCED_CARD = random.choice(state.HELD_CARDS)
         self.print_trigger(f"forces {state.FORCED_CARD.name} to be selected")
+
+################################################
+# SKIP TAGS
+################################################
+def tag_check(tag):
+    if any(isinstance(t, tag) for t in state.SKIP_TAGS):
+        return True
+    else:
+        return False
+
+def select_skip_tags():
+    tag_classes = [
+        UncommonTag,
+        RareTag,
+        InvestmentTag,
+        VoucherTag,
+        BossTag,
+        StandardTag,
+        CharmTag,
+        MeteorTag,
+        BuffoonTag,
+        HandyTag,
+        GarbageTag,
+        EtherealTag,
+        CouponTag,
+        DoubleTag,
+        JuggleTag,
+        D6Tag,
+        TopUpTag,
+        SpeedTag,
+        OrbitalTag,
+        EconomyTag,
+    ]
+    state.GENERATED_SKIP_TAGS.clear()
+    for i in range(2):
+        valid_tags = [
+            tag_class
+            for tag_class in tag_classes
+            if state.ANTE >= tag_class().min_ante
+        ]
+        if not valid_tags:
+            raise RuntimeError(
+                f"No valid Skip Tags for Ante {state.ANTE}"
+            )
+        state.GENERATED_SKIP_TAGS.append(random.choice(valid_tags)())
+    
+class SkipTag:
+    def __init__(self, name, description, min_ante=0):
+        self.name = name
+        self.description = description
+        self.min_ante = min_ante
+    def get_description(self):
+        return self.description
+    def print_trigger(self, message):
+        print(f"Tag Activated! '{self.name}' {message}")
+    def trigger(self):
+        pass
+
+class BossTag(SkipTag):
+    def __init__(self):
+        super().__init__(name="Boss Tag", description="Rerolls the Boss Blind")
+    def trigger(self):
+        select_boss_blind()
+        self.print_trigger(f"rerolls the Boss Blind")
+
+class BuffoonTag(SkipTag):
+    def __init__(self):
+        super().__init__(name="Buffoon Tag", description="Gives a free Mega Buffoon Pack", min_ante=2)
+    def trigger(self):
+        from game.booster_packs import BuffoonPack
+        state.CURRENT_PACK = BuffoonPack()
+        state.GAMESTATE = state.GameState.booster_pack
+        self.print_trigger(f"gives a free Mega Buffoon Pack")
+
+class CouponTag(SkipTag):
+    def __init__(self):
+        super().__init__(name="Coupon Tag", description="Initial cards and booster packs in next shop are free")
+    def trigger(self):
+        self.print_trigger(f"makes cards and booster packs free")
+
+class D6Tag(SkipTag):
+    def __init__(self):
+        super().__init__(name="D6 Tag", description="Rerolls in next shop start at $0")
+    def trigger(self):
+        self.print_trigger(f"sets reroll cost to $0")
+
+class DoubleTag(SkipTag):
+    def __init__(self):
+        super().__init__(name="Double Tag", description="Gives a copy of the next selected Tag (Double Tag excluded)")
+    def trigger(self):
+        self.print_trigger(f"turns into a {state.COPIED_TAG.name}")
+        state.SKIP_TAGS.remove(self)
+        state.SKIP_TAGS.append(state.COPIED_TAG)
+
+class EconomyTag(SkipTag):
+    def __init__(self):
+        super().__init__(name="Economy Tag", description="Doubles your money (Max of $40)")
+    def trigger(self):
+        money_gain = state.MONEY
+        if money_gain > 40:
+            money_gain = 40
+        add_money(money_gain)
+        self.print_trigger(f"gives ${money_gain}")
+
+class GarbageTag(SkipTag):
+    def __init__(self):
+        super().__init__(
+            name="Garbage Tag",
+            description="Gives $1 per unused discard this run",
+            min_ante=2
+        )
+
+    def get_description(self):
+        return (
+            f"Gives $1 per unused discard this run "
+            f"(Will give ${state.UNUSED_DISCARDS})"
+        )
+
+    def trigger(self):
+        add_money(state.UNUSED_DISCARDS)
+        self.print_trigger(f"gives ${state.UNUSED_DISCARDS}")
+
+class HandyTag(SkipTag):
+    def __init__(self):
+        super().__init__(
+            name="Handy Tag",
+            description="Gives $1 per played hand this run",
+            min_ante=2
+        )
+
+    def get_description(self):
+        return (
+            f"Gives $1 per played hand this run "
+            f"(Will give ${state.PLAYED_HANDS})"
+        )
+
+    def trigger(self):
+        add_money(state.PLAYED_HANDS)
+        self.print_trigger(f"gives ${state.PLAYED_HANDS}")
+class InvestmentTag(SkipTag):
+    def __init__(self):
+        super().__init__(name="Investment Tag", description="Gain $25 after defeating the next Boss Blind")
+
+class JuggleTag(SkipTag):
+    def __init__(self):
+        super().__init__(name="Juggle Tag", description="+3 hand size next round")
+    def trigger(self):
+        state.HAND_SIZE += 3
+        self.print_trigger(f"gives +3 hand size")
+
+class OrbitalTag(SkipTag):
+    def __init__(self):
+        self.selected_hand = random.choice(list(state.TIMES_PLAYED.keys()))
+        super().__init__(name="Orbital Tag", description=f"Upgrade {self.selected_hand} by 3 levels", min_ante=2)
+    def trigger(self):
+        from game.consumables import hand_levelup
+        for l in range(3):
+            hand_levelup(self.selected_hand)
+        self.print_trigger(f"upgrades {self.selected_hand} by 3 levels (Currently Level {state.HAND_LEVELS[self.selected_hand]}, {state.HAND_SCORES[self.selected_hand][1]} Mult, {state.HAND_SCORES[self.selected_hand][0]} Chips)")
+
+class RareTag(SkipTag):
+    def __init__(self):
+        super().__init__(name="Rare Tag", description="Shop has a free Rare Joker")
+    def trigger(self):
+        from game.jokers import ARUCO_TO_JOKER, joker_check, Showman
+        valid_jokers = [
+            j_class for j_class in ARUCO_TO_JOKER.values() 
+            if j_class().rarity == "Rare"
+        ]
+        # Showman duplicate check
+        allow_duplicates = joker_check(Showman)
+        if not allow_duplicates:
+            existing_types = {type(j) for j in state.JOKERS}
+            valid_jokers = [cls for cls in valid_jokers if cls not in existing_types]
+        if not valid_jokers:
+            valid_jokers = list(ARUCO_TO_JOKER.values())
+            if not allow_duplicates:
+                valid_jokers = [cls for cls in valid_jokers if cls not in existing_types]
+        if not valid_jokers:
+            self.print_trigger("could not create a Rare Joker, all valid Jokers owned!")
+            return
+        joker_class = random.choice(valid_jokers)
+        generated_joker = joker_class()
+        generated_joker.buy_price = 0
+        self.print_trigger(f"creates a free {generated_joker.name}")
+        state.GUARENTEED_JOKERS.append(generated_joker)
+
+class SpeedTag(SkipTag):
+    def __init__(self):
+        super().__init__(
+            name="Speed Tag",
+            description="Gives $5 per skipped Blind this run"
+        )
+    def get_description(self):
+        return f"Gives $5 per skipped Blind this run (Will give ${(state.SKIPPED_BLINDS + 1) * 5})"
+    def trigger(self):
+        money_gain = state.SKIPPED_BLINDS * 5
+        add_money(money_gain)
+        self.print_trigger(f"gives ${money_gain}")
+
+class TopUpTag(SkipTag):
+    def __init__(self):
+        super().__init__(name="Top-up Tag", description=f"Create up to 2 Common Jokers (Must have room)", min_ante=2)
+    def trigger(self):
+        from game.jokers import ARUCO_TO_JOKER, Showman, joker_check
+        # Fixed range to run twice for up to 2 Jokers!
+        for j in range(2): 
+            if state.FILLED_JOKER_SLOTS < state.MAX_JOKER_SLOTS:
+                generated_weight = random.randint(0, 99)
+                
+                if generated_weight <= 69:
+                    target_rarity = "Common"
+                elif generated_weight <= 94:
+                    target_rarity = "Uncommon"
+                else:
+                    target_rarity = "Rare"
+                valid_jokers = [
+                    j_class for j_class in ARUCO_TO_JOKER.values() 
+                    if j_class().rarity == target_rarity
+                ]
+                allow_duplicates = joker_check(Showman)
+                if not allow_duplicates:
+                    existing_types = {type(j) for j in state.JOKERS}
+                    valid_jokers = [
+                        cls for cls in valid_jokers 
+                        if cls not in existing_types
+                    ]
+                if not valid_jokers:
+                    valid_jokers = list(ARUCO_TO_JOKER.values())
+                    if not allow_duplicates:
+                        valid_jokers = [
+                            cls for cls in valid_jokers 
+                            if cls not in existing_types
+                        ]
+                if not valid_jokers:
+                    self.print_trigger("could not create a Joker, all valid Jokers are already owned!")
+                    break # Stop if we run out of valid jokers
+                    
+                joker_class = random.choice(valid_jokers)
+                generated_joker = joker_class()
+                
+                self.print_trigger(f"creates a {generated_joker.name}")
+                state.JOKERS.append(generated_joker)
+                # Removed self.perish() here as the queue handles removal
+            else:
+                self.print_trigger("cannot make a Joker, no room!")
+                break
+
+class VoucherTag(SkipTag):
+    def __init__(self):
+        super().__init__(name="Voucher Tag", description="Adds one Voucher to the next shop")
+
+
+class CharmTag(SkipTag):
+    def __init__(self):
+        super().__init__(name="Charm Tag", description="Gives a free Mega Arcana Pack")
+    def trigger(self):
+        from game.booster_packs import ArcanaPack
+        state.CURRENT_PACK = ArcanaPack()
+        state.GAMESTATE = state.GameState.booster_pack
+        self.print_trigger("gives a free Mega Arcana Pack")
+
+class EtherealTag(SkipTag):
+    def __init__(self):
+        super().__init__(name="Ethereal Tag", description="Gives a free Spectral Pack", min_ante=2)
+    def trigger(self):
+        from game.booster_packs import SpectralPack
+        state.CURRENT_PACK = SpectralPack()
+        state.GAMESTATE = state.GameState.booster_pack
+        self.print_trigger("gives a free Spectral Pack")
+
+class MeteorTag(SkipTag):
+    def __init__(self):
+        super().__init__(name="Meteor Tag", description="Gives a free Mega Celestial Pack", min_ante=2)
+    def trigger(self):
+        from game.booster_packs import CelestialPack
+        state.CURRENT_PACK = CelestialPack()
+        state.GAMESTATE = state.GameState.booster_pack
+        self.print_trigger("gives a free Mega Celestial Pack")
+
+class StandardTag(SkipTag):
+    def __init__(self):
+        super().__init__(name="Standard Tag", description="Gives a free Mega Standard Pack", min_ante=2)
+    def trigger(self):
+        from game.booster_packs import StandardPack
+        state.CURRENT_PACK = StandardPack()
+        state.GAMESTATE = state.GameState.booster_pack
+        self.print_trigger("gives a free Mega Standard Pack")
+
+class UncommonTag(SkipTag):
+    def __init__(self):
+        super().__init__(name="Uncommon Tag", description="Shop has a free Uncommon Joker")
+    def trigger(self):
+        from game.jokers import ARUCO_TO_JOKER, joker_check, Showman
+        valid_jokers = [
+            j_class for j_class in ARUCO_TO_JOKER.values() 
+            if j_class().rarity == "Uncommon"
+        ]
+        
+        allow_duplicates = joker_check(Showman)
+        if not allow_duplicates:
+            existing_types = {type(j) for j in state.JOKERS}
+            valid_jokers = [cls for cls in valid_jokers if cls not in existing_types]
+            
+        if not valid_jokers:
+            valid_jokers = list(ARUCO_TO_JOKER.values())
+            if not allow_duplicates:
+                valid_jokers = [cls for cls in valid_jokers if cls not in existing_types]
+                
+        if not valid_jokers:
+            self.print_trigger("could not create an Uncommon Joker, all valid Jokers owned!")
+            return
+            
+        joker_class = random.choice(valid_jokers)
+        generated_joker = joker_class()
+        generated_joker.buy_price = 0
+        self.print_trigger(f"creates a free {generated_joker.name}")
+        state.GUARENTEED_JOKERS.append(generated_joker)

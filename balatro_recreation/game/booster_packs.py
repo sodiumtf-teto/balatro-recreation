@@ -43,7 +43,20 @@ class BoosterPack:
         else:
             return 3, 1
 
-    def _generate_joker(self):
+    def _generate_batch(self, generate_func, count, *args, **kwargs):
+        """Generates a batch of items while preventing duplicates within the batch."""
+        cards = []
+        excluded = set()
+        for _ in range(count):
+            item = generate_func(*args, excluded_types=excluded, **kwargs)
+            if item:
+                cards.append(item)
+                excluded.add(type(item))
+            else:
+                cards.append(None)
+        return cards
+
+    def _generate_joker(self, excluded_types=None):
         from game.jokers import ARUCO_TO_JOKER, joker_check, Showman
 
         generated_weight = random.randint(0, 99)
@@ -61,7 +74,6 @@ class BoosterPack:
             if joker_class().rarity == target_rarity
         ]
 
-        # Showman allows duplicate Jokers.
         allow_duplicates = joker_check(Showman)
 
         if not allow_duplicates:
@@ -69,6 +81,8 @@ class BoosterPack:
                 type(joker)
                 for joker in state.JOKERS
             }
+            if excluded_types:
+                existing_types.update(excluded_types)
 
             valid_jokers = [
                 joker_class
@@ -81,6 +95,13 @@ class BoosterPack:
             valid_jokers = list(ARUCO_TO_JOKER.values())
 
             if not allow_duplicates:
+                existing_types = {
+                    type(joker)
+                    for joker in state.JOKERS
+                }
+                if excluded_types:
+                    existing_types.update(excluded_types)
+
                 valid_jokers = [
                     joker_class
                     for joker_class in valid_jokers
@@ -92,9 +113,32 @@ class BoosterPack:
 
         return random.choice(valid_jokers)()
 
-    def _generate_consumable(self, aruco_range):
+    def _generate_consumable(self, aruco_range, excluded_types=None):
         from game.consumables import ARUCO_TO_CONSUMABLE
         from game.jokers import joker_check, Showman
+        from game.vouchers import voucher_check, OmenGlobe, Telescope
+
+        if self.pack_type == "Arcana" and voucher_check(OmenGlobe) and random.random() < 0.2:
+            aruco_range = (233, 237)
+        elif self.pack_type == "Celestial" and voucher_check(Telescope):
+            hands_by_plays = sorted(state.TIMES_PLAYED.keys(), key=lambda h: state.TIMES_PLAYED[h], reverse=True)
+            most_played_hand = hands_by_plays[0] if hands_by_plays else "High Card"
+            planet_map = {
+                "High Card": 221,
+                "Pair": 222,
+                "Two Pair": 223,
+                "Three of a Kind": 224,
+                "Straight": 225,
+                "Flush": 226,
+                "Full House": 227,
+                "Four of a Kind": 228,
+                "Straight Flush": 229,
+            }
+            
+            target_aruco = planet_map.get(most_played_hand, 221)
+            if target_aruco in ARUCO_TO_CONSUMABLE:
+                return ARUCO_TO_CONSUMABLE[target_aruco]()
+                
 
         valid_classes = [
             ARUCO_TO_CONSUMABLE[aruco_id]
@@ -111,6 +155,8 @@ class BoosterPack:
                 type(consumable)
                 for consumable in state.CONSUMABLES
             }
+            if excluded_types:
+                existing_types.update(excluded_types)
 
             valid_classes = [
                 consumable_class
@@ -154,9 +200,9 @@ class MegaPack(BoosterPack):
             name=name,
             description=description,
             pack_type=pack_type,
-            buy_price=8
+            buy_price=buy_price
         )
-
+        self.select_amount = 2
 
 # ---------------------------------------------------------------------------
 # Standard Packs
@@ -166,7 +212,7 @@ class StandardPack(NormalPack):
     def __init__(self):
         super().__init__(
             name="Standard Pack",
-            description="Choose 1 of 3 cards",
+            description="Choose 1 of 3 playing cards",
             pack_type="Standard"
         )
 
@@ -179,7 +225,7 @@ class JumboStandardPack(JumboPack):
     def __init__(self):
         super().__init__(
             name="Jumbo Standard Pack",
-            description="Choose 1 of 5 cards",
+            description="Choose 1 of 5 playing cards",
             pack_type="Standard"
         )
 
@@ -191,7 +237,7 @@ class MegaStandardPack(MegaPack):
     def __init__(self):
         super().__init__(
             name="Mega Standard Pack",
-            description="Choose up to 2 of 5 cards",
+            description="Choose up to 2 of 5 playing cards",
             pack_type="Standard"
         )
 
@@ -205,47 +251,27 @@ class MegaStandardPack(MegaPack):
 
 class BuffoonPack(NormalPack):
     def __init__(self):
-        super().__init__(
-            name="Buffoon Pack",
-            description="Choose 1 of 2 Jokers",
-            pack_type="Buffoon"
-        )
+        super().__init__(name="Buffoon Pack", description="Choose 1 of 2 Jokers", pack_type="Buffoon")
 
     def generate_cards(self):
-        return [
-            self._generate_joker()
-            for _ in range(2)
-        ]
+        return self._generate_batch(self._generate_joker, 2)
 
 
 class JumboBuffoonPack(JumboPack):
     def __init__(self):
-        super().__init__(
-            name="Jumbo Buffoon Pack",
-            description="Choose 1 of 4 Jokers",
-            pack_type="Buffoon"
-        )
+        super().__init__(name="Jumbo Buffoon Pack", description="Choose 1 of 4 Jokers", pack_type="Buffoon")
 
     def generate_cards(self):
-        return [
-            self._generate_joker()
-            for _ in range(4)
-        ]
+        return self._generate_batch(self._generate_joker, 4)
 
 
 class MegaBuffoonPack(MegaPack):
     def __init__(self):
-        super().__init__(
-            name="Mega Buffoon Pack",
-            description="Choose up to 2 of 4 Jokers",
-            pack_type="Buffoon"
-        )
+        super().__init__(name="Mega Buffoon Pack", description="Choose up to 2 of 4 Jokers", pack_type="Buffoon")
+        self.select_amount = 2
 
     def generate_cards(self):
-        return [
-            self._generate_joker()
-            for _ in range(4)
-        ]
+        return self._generate_batch(self._generate_joker, 4)
 
 
 # ---------------------------------------------------------------------------
@@ -254,47 +280,27 @@ class MegaBuffoonPack(MegaPack):
 
 class ArcanaPack(NormalPack):
     def __init__(self):
-        super().__init__(
-            name="Arcana Pack",
-            description="Choose 1 of 3 Tarot cards",
-            pack_type="Arcana"
-        )
+        super().__init__(name="Arcana Pack", description="Choose 1 of 3 Tarot cards", pack_type="Arcana")
 
     def generate_cards(self):
-        return [
-            self._generate_consumable((199, 205))
-            for _ in range(3)
-        ]
+        return self._generate_batch(self._generate_consumable, 3, aruco_range=(199, 205))
 
 
 class JumboArcanaPack(JumboPack):
     def __init__(self):
-        super().__init__(
-            name="Jumbo Arcana Pack",
-            description="Choose 1 of 5 Tarot cards",
-            pack_type="Arcana"
-        )
+        super().__init__(name="Jumbo Arcana Pack", description="Choose 1 of 5 Tarot cards", pack_type="Arcana")
 
     def generate_cards(self):
-        return [
-            self._generate_consumable((199, 205))
-            for _ in range(5)
-        ]
+        return self._generate_batch(self._generate_consumable, 5, aruco_range=(199, 205))
 
 
 class MegaArcanaPack(MegaPack):
     def __init__(self):
-        super().__init__(
-            name="Mega Arcana Pack",
-            description="Choose up to 2 of 5 Tarot cards",
-            pack_type="Arcana"
-        )
+        super().__init__(name="Mega Arcana Pack", description="Choose up to 2 of 5 Tarot cards", pack_type="Arcana")
+        self.select_amount = 2
 
     def generate_cards(self):
-        return [
-            self._generate_consumable((199, 205))
-            for _ in range(5)
-        ]
+        return self._generate_batch(self._generate_consumable, 5, aruco_range=(199, 205))
 
 
 # ---------------------------------------------------------------------------
@@ -303,47 +309,27 @@ class MegaArcanaPack(MegaPack):
 
 class CelestialPack(NormalPack):
     def __init__(self):
-        super().__init__(
-            name="Celestial Pack",
-            description="Choose 1 of 3 Planet cards",
-            pack_type="Celestial"
-        )
+        super().__init__(name="Celestial Pack", description="Choose 1 of 3 Planet cards", pack_type="Celestial")
 
     def generate_cards(self):
-        return [
-            self._generate_consumable((221, 228))
-            for _ in range(3)
-        ]
+        return self._generate_batch(self._generate_consumable, 3, aruco_range=(221, 228))
 
 
 class JumboCelestialPack(JumboPack):
     def __init__(self):
-        super().__init__(
-            name="Jumbo Celestial Pack",
-            description="Choose 1 of 5 Planet cards",
-            pack_type="Celestial"
-        )
+        super().__init__(name="Jumbo Celestial Pack", description="Choose 1 of 5 Planet cards", pack_type="Celestial")
 
     def generate_cards(self):
-        return [
-            self._generate_consumable((221, 228))
-            for _ in range(5)
-        ]
+        return self._generate_batch(self._generate_consumable, 5, aruco_range=(221, 228))
 
 
 class MegaCelestialPack(MegaPack):
     def __init__(self):
-        super().__init__(
-            name="Mega Celestial Pack",
-            description="Choose up to 2 of 5 Planet cards",
-            pack_type="Celestial"
-        )
+        super().__init__(name="Mega Celestial Pack", description="Choose up to 2 of 5 Planet cards", pack_type="Celestial")
+        self.select_amount = 2
 
     def generate_cards(self):
-        return [
-            self._generate_consumable((221, 228))
-            for _ in range(5)
-        ]
+        return self._generate_batch(self._generate_consumable, 5, aruco_range=(221, 228))
 
 
 # ---------------------------------------------------------------------------
@@ -352,47 +338,27 @@ class MegaCelestialPack(MegaPack):
 
 class SpectralPack(NormalPack):
     def __init__(self):
-        super().__init__(
-            name="Spectral Pack",
-            description="Choose 1 of 2 Spectral cards",
-            pack_type="Spectral"
-        )
+        super().__init__(name="Spectral Pack", description="Choose 1 of 2 Spectral cards", pack_type="Spectral")
 
     def generate_cards(self):
-        return [
-            self._generate_consumable((0, 0))
-            for _ in range(2)
-        ]
+        return self._generate_batch(self._generate_consumable, 2, aruco_range=(233, 237))
 
 
 class JumboSpectralPack(JumboPack):
     def __init__(self):
-        super().__init__(
-            name="Jumbo Spectral Pack",
-            description="Choose 1 of 4 Spectral cards",
-            pack_type="Spectral"
-        )
+        super().__init__(name="Jumbo Spectral Pack", description="Choose 1 of 4 Spectral cards", pack_type="Spectral")
 
     def generate_cards(self):
-        return [
-            self._generate_consumable((0, 0))
-            for _ in range(4)
-        ]
+        return self._generate_batch(self._generate_consumable, 4, aruco_range=(233, 237))
 
 
 class MegaSpectralPack(MegaPack):
     def __init__(self):
-        super().__init__(
-            name="Mega Spectral Pack",
-            description="Choose up to 2 of 4 Spectral cards",
-            pack_type="Spectral"
-        )
+        super().__init__(name="Mega Spectral Pack", description="Choose up to 2 of 4 Spectral cards", pack_type="Spectral")
+        self.select_amount = 2
 
     def generate_cards(self):
-        return [
-            self._generate_consumable((0, 0))
-            for _ in range(4)
-        ]
+        return self._generate_batch(self._generate_consumable, 4, aruco_range=(233, 237))
 
 ARUCO_TO_BOOSTER_PACK = {
     600: ArcanaPack,

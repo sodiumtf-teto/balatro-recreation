@@ -11,13 +11,13 @@ from hardware.camera import capture_image
 from hardware.arduino_serial import get_button_press, activate_scored_card, init_serial, add_money
 from game.decks import next_deck, apply_deck
 from game.stakes import next_stake, apply_stake
-from game.blinds import calculate_blinds, select_boss_blind, TheWheel, TheOx
+from game.blinds import calculate_blinds, select_boss_blind, select_skip_tags, tag_check, InvestmentTag, BossTag, BuffoonTag, CharmTag, EtherealTag, MeteorTag, StandardTag, EconomyTag, GarbageTag, HandyTag, SpeedTag, OrbitalTag, TopUpTag, DoubleTag, CouponTag, TheWheel, TheOx
 from game.scoring import evaluate_hand
 from game.jokers import trigger_jokers, joker_check, sync_jokers, sync_played_jokers, MrBones, ToTheMoon
 from game.consumables import sync_consumables, sync_played_consumables
 from game.card import sync_cards, sync_held_cards
 from game.shop import initialize_shop, reroll
-from game.vouchers import sync_played_vouchers
+from game.vouchers import sync_played_vouchers, voucher_check, DirectorsCut, Retcon
 from game.booster_packs import sync_played_booster_packs
 
 IMAGE_PATH = "hardware/board.jpg"
@@ -83,6 +83,11 @@ def scan_and_sync_board(detector):
             f"{', '.join(p.name for p in state.PLAYED_BOOSTER_PACKS)}"
         )
 
+def print_info(c, slot, price=0):
+    price_str = f" (${price})" if price != 0 else ""
+    print(f"Slot {slot+1}: {c.name}{price_str}")
+    print(f"Description: {c.description}")
+
 def sell_items_in_play_area():
     total_sale = 0
 
@@ -102,45 +107,89 @@ def sell_items_in_play_area():
         print("Nothing sellable in the play area.")
 
 def run_booster_pack(detector):
-    print("\n--- BOOSTER PACK ---")
+    if state.CURRENT_PACK:
+        print(f"\n--- OPENED: {state.CURRENT_PACK.name.upper()} ---")
+        print("PACK SLOTS:")
+        for i, card in enumerate(state.CURRENT_PACK.cards):
+            print_info(card, i)
+            
+        selections_allowed = state.CURRENT_PACK.select_amount
+    else:
+        print("\n--- BOOSTER PACK ---")
+        selections_allowed = 1
+
+    selections_made = 0
+
     while state.GAMESTATE == state.GameState.booster_pack:
+        print(f"\nSelections remaining: {selections_allowed - selections_made}")
+        print("Place chosen card(s) in play area and press PLAY. Press DISCARD to skip remaining.")
+        
         state.INPUT = get_button_press()
         if not state.INPUT:
             continue
+        
         scan_and_sync_board(detector)
+        
         # ------------------------------------------------------------
-        # PLAY
+        # PLAY (Make Selection)
         # ------------------------------------------------------------
         if state.INPUT == "Play":
+            selected_items = (
+                list(state.PLAYED_CONSUMABLES) + 
+                list(state.PLAYED_JOKERS) + 
+                list(state.PLAYED_CARDS)
+            )
 
-            # Play consumables placed in the play area.
-            if state.PLAYED_CONSUMABLES:
+            if selected_items:
+                for item in selected_items:
+                    if selections_made >= selections_allowed:
+                        print("Max selections reached! Extra items ignored.")
+                        break
+                        
+                    # Handle Joker Selection (Buffoon Packs)
+                    if item in state.PLAYED_JOKERS:
+                        if state.FILLED_JOKER_SLOTS >= state.MAX_JOKER_SLOTS:
+                            print(f"Cannot select {item.name}: No Joker slots available.")
+                        else:
+                            state.JOKERS.append(item)
+                            state.PREV_HELD_JOKERS.append(item)
+                            print(f"Selected Joker: {item.name}!")
+                            selections_made += 1
+                            
+                    # Handle Consumable Selection (Arcana, Celestial, Spectral)
+                    elif item in state.PLAYED_CONSUMABLES:
+                        print(f"Using Consumable: {item.name}")
+                        item.trigger()
+                        if item in state.CONSUMABLES:
+                            state.CONSUMABLES.remove(item)
+                        selections_made += 1
+                        
+                    # Handle Standard Card Selection (Standard Packs)
+                    elif item in state.PLAYED_CARDS:
+                        if hasattr(state, 'DECK') and hasattr(state.DECK, 'cards'):
+                            state.DECK.cards.append(item)
+                        print(f"Added {item.name} to your deck!")
+                        selections_made += 1
 
-                for c in list(state.PLAYED_CONSUMABLES):
-                    print(f"Using consumable: {c.name}")
-                    c.trigger()
-
-                    if c in state.CONSUMABLES:
-                        state.CONSUMABLES.remove(c)
-
-                print(
-                    "Consumables used. "
-                    "Please remove them from the play area."
-                )
+                print("Please remove the selected cards from the play area.")
+                
+                if selections_made >= selections_allowed:
+                    print("Finished selecting from booster pack!")
+                    state.GAMESTATE = state.DROPOFF_POINT
             else:
-                print("Nothing in the play area to use.")
+                print("Nothing in the play area to select.")
+                
         # ------------------------------------------------------------
-        # DISCARD
+        # DISCARD (Skip)
         # ------------------------------------------------------------
         elif state.INPUT == "Discard":
-
             if state.PLAYED_CONSUMABLES or state.PLAYED_JOKERS:
                 sell_items_in_play_area()
             else:
-                print("Skipping booster pack.")
-                state.GAMESTATE = state.GameState.shop
+                print("Skipping remaining booster pack choices.")
+                state.GAMESTATE = state.DROPOFF_POINT
+                
         state.INPUT = None
-    print("\nReturning to shop...")
 
 def run_game(detector):
     while True:
@@ -173,41 +222,52 @@ def run_game(detector):
         apply_deck()
         calculate_blinds()
         select_boss_blind()
+        select_skip_tags()
 
         # ==========================================================
         # MAIN RUN LOOP
         # ==========================================================
         while state.GAMESTATE != state.GameState.lose:
-            scan_and_sync_board(detector)
-            trigger_jokers("passive")
-            
-            # --- BLIND SETUP ---
-            state.GAMESTATE = state.GameState.blind_select
-            calculate_blinds()
-
-            print(f"\n--- {state.CURRENT_BLIND.upper()} BLIND ---")
-            if state.CURRENT_BLIND == "small":
-                state.SCORE_TARGET = state.SMALL_BLIND_SCORE
-                state.CURRENT_BLIND_MONEY = state.SMALL_BLIND_MONEY
-            elif state.CURRENT_BLIND == "big":
-                state.SCORE_TARGET = state.BIG_BLIND_SCORE
-                state.CURRENT_BLIND_MONEY = state.BIG_BLIND_MONEY
-            elif state.CURRENT_BLIND == "boss":
-                state.SCORE_TARGET = state.BOSS_BLIND_SCORE
-                state.CURRENT_BLIND_MONEY = state.BOSS_BLIND_MONEY
-                if state.BOSS_BLIND.name in {"The Wall", "Violet Vessel"}:
-                    state.BOSS_BLIND.trigger()
-                
-            print(f"Target: {format_balatro_number(state.SCORE_TARGET)} | Reward: ${state.CURRENT_BLIND_MONEY}")
-            if state.CURRENT_BLIND != "boss":
-                print(f"\n--- UPCOMING BOSS BLIND ---")
-                print(f"Boss Blind: {state.BOSS_BLIND.name} | {state.BOSS_BLIND.description}")
-            else:
-                print(f"Boss Blind: {state.BOSS_BLIND.name} | {state.BOSS_BLIND.description}")
-            print("\nPress PLAY to select. " + ("Cannot skip Boss!" if state.CURRENT_BLIND == "boss" else "Press DISCARD to skip."))
-
             # --- BLIND SELECT PHASE ---
+            state.GAMESTATE = state.GameState.blind_select
+            state.DROPOFF_POINT = state.GameState.blind_select
+            
             while state.GAMESTATE == state.GameState.blind_select:
+                scan_and_sync_board(detector)
+                trigger_jokers("passive")
+                calculate_blinds()
+    
+                print("\n--- SKIP TAGS ---")
+                print(f"Small Blind: {state.GENERATED_SKIP_TAGS[0].name}")
+                print(f"{state.GENERATED_SKIP_TAGS[0].get_description()}")
+                print(f"Big Blind: {state.GENERATED_SKIP_TAGS[1].name}")
+                print(f"{state.GENERATED_SKIP_TAGS[1].get_description()}")
+                if state.CURRENT_BLIND != "boss":
+                    print(f"\n--- UPCOMING BOSS BLIND ---")
+                    print(f"Boss Blind: {state.BOSS_BLIND.name} | {state.BOSS_BLIND.description}")
+                else:
+                    print(f"Boss Blind: {state.BOSS_BLIND.name} | {state.BOSS_BLIND.description}")
+
+                print(f"\n--- {state.CURRENT_BLIND.upper()} BLIND ---")
+                if state.CURRENT_BLIND == "small":
+                    state.SCORE_TARGET = state.SMALL_BLIND_SCORE
+                    state.CURRENT_BLIND_MONEY = state.SMALL_BLIND_MONEY
+                elif state.CURRENT_BLIND == "big":
+                    state.SCORE_TARGET = state.BIG_BLIND_SCORE
+                    state.CURRENT_BLIND_MONEY = state.BIG_BLIND_MONEY
+                elif state.CURRENT_BLIND == "boss":
+                    state.SCORE_TARGET = state.BOSS_BLIND_SCORE
+                    state.CURRENT_BLIND_MONEY = state.BOSS_BLIND_MONEY
+                    if state.BOSS_BLIND.name in {"The Wall", "Violet Vessel"}:
+                        state.BOSS_BLIND.trigger()
+
+                print(f"Target: {format_balatro_number(state.SCORE_TARGET)} | Reward: ${state.CURRENT_BLIND_MONEY}")
+                print("\nPress PLAY to select. " + ("Press DISCARD to skip.")) if state.CURRENT_BLIND != "boss" else ""
+                if state.CURRENT_BLIND == "boss":
+                    if voucher_check(Retcon) or (voucher_check(DirectorsCut) and not state.REROLLED_BOSS):
+                        print("Press DISCARD to reroll Boss Blind for $10")
+                    else:
+                        print("Cannot skip Boss Blind!")
                 state.INPUT = get_button_press()
                 if not state.INPUT: continue
                 
@@ -236,12 +296,61 @@ def run_game(detector):
                             print("Skipping blind!")
                             state.SKIPPED_BLINDS += 1
                             trigger_jokers("throwback")
-                            # Skip to next blind start instantly
+                            
+                            # 1. Determine the skipped tag
                             if state.CURRENT_BLIND == "small":
+                                skipped_tag = state.GENERATED_SKIP_TAGS[0]
                                 state.CURRENT_BLIND = "big"
                             elif state.CURRENT_BLIND == "big":
+                                skipped_tag = state.GENERATED_SKIP_TAGS[1]
                                 state.CURRENT_BLIND = "boss"
+                                
+                            # 2. Trigger pending Double Tags (must happen BEFORE the instant loop)
+                            # This will make Double Tags copy the skipped tag and inject the copy into SKIP_TAGS
+                            if not isinstance(skipped_tag, DoubleTag):
+                                double_tags = [t for t in state.SKIP_TAGS if isinstance(t, DoubleTag)]
+                                for d_tag in double_tags:
+                                    # Create a brand new instance of the class so it's safely duplicated
+                                    state.COPIED_TAG = type(skipped_tag)() 
+                                    d_tag.trigger() 
+                                    
+                            # 3. Add the naturally skipped tag to our inventory
+                            state.SKIP_TAGS.append(skipped_tag)
+                            
+                            # 4. Process all Instant Tags
+                            # We check against this tuple to see if a tag should be processed now vs later
+                            instant_tag_types = (
+                                BossTag, BuffoonTag, CharmTag, EtherealTag, MeteorTag,
+                                StandardTag, EconomyTag, GarbageTag, HandyTag, SpeedTag,
+                                OrbitalTag, TopUpTag
+                            )
+                            
+                            # Iterate over a shallow copy so we can safely remove from the actual list
+                            tags_to_process = state.SKIP_TAGS[:]
+                            for tag in tags_to_process:
+                                if isinstance(tag, instant_tag_types):
+                                    tag.trigger() # Process the tag
+                                    
+                                    # Remove it from our permanent inventory since it was instant
+                                    if tag in state.SKIP_TAGS:
+                                        state.SKIP_TAGS.remove(tag)
+                                        
+                                    # If the tag opened a Booster Pack, interrupt and run the pack right now!
+                                    # Since they are queued, multiple packs will open back-to-back perfectly.
+                                    if state.GAMESTATE == state.GameState.booster_pack:
+                                        run_booster_pack(detector)
+                                        # run_booster_pack sets gamestate back to dropoff_point when done
+                                        state.GAMESTATE = state.DROPOFF_POINT
+                                        
+                            # Loop back to the blind select screen
                             state.GAMESTATE = state.GameState.blind_select
+                            
+                        # Existing boss reroll logic
+                        elif voucher_check(Retcon) or (voucher_check(DirectorsCut) and not state.REROLLED_BOSS):
+                            state.REROLLED_BOSS = True
+                            add_money(-10)
+                            select_boss_blind()
+                            print("Rerolling boss blind...")
                         else:
                             print("You cannot skip the Boss Blind!")
                 state.INPUT = None
@@ -262,16 +371,22 @@ def run_game(detector):
                         print("Consumables used! Please remove them from the play area.")
                     elif len(state.PLAYED_CARDS) > 0:
                         state.HANDS -= 1
+                        state.PLAYED_HANDS += 1
                         evaluate_hand(state.PLAYED_CARDS)
                         print(f"Played: {state.HAND_TYPE} | Scored: {format_balatro_number(state.SCORE)}")
                         state.SCORE_SUM += state.SCORE
                         
                         # Check Win/Loss conditions
-                        if state.SCORE_SUM >= state.SCORE_TARGET:
+                        if state.SCORE_SUM >= state.SCORE_TARGET and format_balatro_number(state.SCORE_TARGET) != "naneinf":
                             print("\n*** Blind Defeated! ***")
                             trigger_jokers("end_of_blind")
                             trigger_jokers("end_of_blind_blueprint")
+                            state.UNUSED_DISCARDS += state.DISCARDS
                             state.GAMESTATE = state.GameState.cash_out
+                        elif format_balatro_number(state.SCORE_TARGET) == "naneinf" and format_balatro_number(state.SCORE_SUM) == "naneinf":
+                            print("Mankind is not prepared to challenge infinity.")
+                            state.GAMESTATE = state.GameState.lose
+
                         elif state.HANDS <= 0:
                             print("\n*** Out of Hands! ***")
                             if joker_check(MrBones) and state.SCORE_SUM >= state.SCORE_TARGET / 4:
@@ -325,6 +440,13 @@ def run_game(detector):
                     state.MONEY_GAIN += state.CURRENT_BLIND_MONEY
                 if state.HANDS > 0:
                     state.MONEY_GAIN += state.HANDS
+                if state.CURRENT_BLIND == "boss":
+                    for tag in state.SKIP_TAGS[:]:
+                        if tag.name == "Investment Tag":
+                            state.MONEY_GAIN += 25
+                            state.SKIP_TAGS.remove(tag)
+                            tag.trigger()
+
 
                 # --- INCREMENT BLIND / ANTE ---
                 if state.GAMESTATE != state.GameState.lose:
@@ -338,7 +460,9 @@ def run_game(detector):
                         state.SHOP_VOUCHERS_ROLLED = False
                         state.JOKER_SOLD = False
                         state.DEBUFFED_CARDS.clear()
+                        state.REROLLED_BOSS = False
                         select_boss_blind()
+                        select_skip_tags()
                                     
                 interest_cap = state.MAX_INTEREST * 2 if joker_check(ToTheMoon) else state.MAX_INTEREST
                 interest = min(state.MONEY // 5, interest_cap)
@@ -374,30 +498,36 @@ def run_game(detector):
                 state.GAMESTATE = state.GameState.shop
 
             if state.GAMESTATE == state.GameState.shop:
+                state.DROPOFF_POINT = state.GameState.shop
                 initialize_shop()
                 shop_done = False
                 while not shop_done and state.GAMESTATE == state.GameState.shop:
                     discount_multiplier = 1 - getattr(state, 'DISCOUNT', 0.0)
                     print(f"\n--- SHOP ---")
                     print(f"Current Money: ${state.MONEY}")
+                    
                     print(f"SHOP SLOTS:")
                     for i, slot in enumerate(state.SHOP_SLOTS):
                         discounted_price = int(slot.buy_price * discount_multiplier)
-                        print(f"  Slot {i+1}: {slot.name} (${discounted_price})")
+                        print_info(slot, i, discounted_price)
+                        
                     print(f"VOUCHER SLOTS:")
                     for i, slot in enumerate(state.VOUCHER_SLOTS):
                         discounted_price = int(slot.buy_price * discount_multiplier)
-                        print(f"  Slot {i+1}: {slot.name} (${discounted_price})")
+                        print_info(slot, i, discounted_price)
+                        
                     print(f"BOOSTER PACK SLOTS:")
                     for i, slot in enumerate(state.BOOSTER_PACK_SLOTS):
                         discounted_price = int(slot.buy_price * discount_multiplier)
-                        print(f"  Slot {i+1}: {slot.name} (${discounted_price})")
+                        print_info(slot, i, discounted_price)
+                        
                     print()
                     print("PLAY: Leave shop (or buy/use items in play area).")
                     print(f"DISCARD: Reroll for ${state.REROLL_COST} (or sell items in play area).")
                     state.INPUT = get_button_press()
                     if not state.INPUT: continue
                     scan_and_sync_board(detector)
+                    print()
 
                     if state.INPUT == "Play":
 
@@ -450,6 +580,7 @@ def run_game(detector):
                         # ================================================================
 
                         booster_opened = False
+                        state.CURRENT_PACK = None
 
                         for booster in list(state.PLAYED_BOOSTER_PACKS):
                             
@@ -470,6 +601,8 @@ def run_game(detector):
                                 )
 
                                 booster_opened = True
+                                state.CURRENT_PACK = booster
+
                                 # Find and remove by name
                                 for b in state.BOOSTER_PACK_SLOTS:
                                     if b.name == booster.name:
@@ -604,6 +737,8 @@ def run_game(detector):
                     state.INPUT = None
                     if state.GAMESTATE == state.GameState.booster_pack:
                         run_booster_pack(detector)
+                        print("Returning to shop...")
+
 
         # If we exited the loop, the player lost.
         print("\n=== GAME OVER ===")

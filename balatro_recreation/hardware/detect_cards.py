@@ -20,7 +20,7 @@ class BoardDetector:
         self.aruco_params.adaptiveThreshWinSizeMin = 3
         self.aruco_params.adaptiveThreshWinSizeMax = 23
         self.aruco_params.adaptiveThreshWinSizeStep = 10
-        self.aruco_params.minMarkerPerimeterRate = 0.02
+        self.aruco_params.minMarkerPerimeterRate = 0.04
         self.aruco_params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
 
     def _extract_sorted_arucos(self, image_roi):

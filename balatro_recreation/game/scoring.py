@@ -2,7 +2,8 @@ from collections import Counter
 from itertools import combinations
 from game import state
 from game.jokers import Splash, FourFingers, Shortcut, Pareidolia, SmearedJoker, trigger_jokers, joker_check
-from hardware.arduino_serial import activate_scored_card, start_scoring_phase, add_mult, add_chips
+from game.vouchers import voucher_check, Observatory
+from hardware.arduino_serial import activate_scored_card, start_scoring_phase, add_mult, add_chips, mult_mult
 
 # Standard Ace-high ranking
 RANK_ORDER_HIGH = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
@@ -225,7 +226,29 @@ def evaluate_hand(hand):
 
         if state.BOSS_BLIND.name in {"Crimson Heart", "Cerulean Bell", "The Fish", "The Hook"} and state.CURRENT_BLIND == "boss":
             state.BOSS_BLIND.trigger()
-        
+
+        if voucher_check(Observatory):
+            planet_names = {
+                "High Card": "Pluto",
+                "Pair": "Mercury",
+                "Two Pair": "Uranus",
+                "Three of a Kind": "Venus",
+                "Straight": "Saturn",
+                "Flush": "Jupiter",
+                "Full House": "Earth",
+                "Four of a Kind": "Mars",
+                "Straight Flush": "Neptune",
+                "Five of a Kind": "Planet X",
+                "Flush House": "Ceres",
+                "Flush Five": "Eris"
+            }
+            target_planet = planet_names.get(state.HAND_TYPE)
+            if target_planet and hasattr(state, 'CONSUMABLES'):
+                for item in state.CONSUMABLES:
+                    if getattr(item, 'name', '') == target_planet:
+                        mult_mult(1.5)
+                        print(f"Observatory triggered! {target_planet} gave x1.5 Mult.")
+
         state.SCORE = state.CHIPS * state.MULT
     else:
         state.SCORE = 0

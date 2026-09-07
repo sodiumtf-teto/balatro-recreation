@@ -1,5 +1,5 @@
 from game import state
-from game.shop import reroll
+from game.shop import fill_new_shop_slots
 
 def voucher_check(voucher):
     if any(isinstance(v, voucher) for v in state.VOUCHERS):
@@ -26,7 +26,7 @@ class Overstock(Voucher):
     def trigger(self):
         state.NUM_SHOP_SLOTS += 1
         self.print_trigger("increases shop card slots to 3")
-        # Refill all empty shop slots, implementing later
+        fill_new_shop_slots()
 
 class OverstockPlus(Voucher):
     def __init__(self):
@@ -34,7 +34,7 @@ class OverstockPlus(Voucher):
     def trigger(self):
         state.NUM_SHOP_SLOTS += 1
         self.print_trigger("increases shop card slots to 4")
-        # Refill all empty shop slots, implementing later
+        fill_new_shop_slots()
 
 class ClearanceSale(Voucher):
     def __init__(self):
@@ -88,21 +88,18 @@ class OmenGlobe(Voucher):
     def __init__(self):
         super().__init__(name="Omen Globe", description="Spectral cards may appear in Arcana Packs")
     def trigger(self):
-        # We'll use a voucher check inside the arcana pack code
         self.print_trigger("allows Spectral cards to appear in Arcana Packs")
 
 class Telescope(Voucher):
     def __init__(self):
         super().__init__(name="Telescope", description="Celestial Packs always contain the Planet card for your most played Poker hand")
     def trigger(self):
-        # Similar to Omen Globe, this voucher affects the contents of Celestial Packs
         self.print_trigger("ensures Celestial Packs contain the Planet card for your most played Poker hand")
 
 class Observatory(Voucher):
     def __init__(self):
         super().__init__(name="Observatory", description="Planet cards in your held consumables give x1.5 Mult for their specified poker hand")
     def trigger(self):
-        # This one is gonna suck to implement but whatever
         self.print_trigger("gives held Planet cards x1.5 Mult for their specified poker hand")
 
 class Grabber(Voucher):
@@ -231,7 +228,6 @@ class DirectorsCut(Voucher):
     def __init__(self):
         super().__init__(name="Directors Cut", description="Reroll Boss Blind 1 time per Ante, $10 per roll")
     def trigger(self):
-        # Another voucher that we'll just use a check for 
         self.print_trigger("allows rerolling the Boss Blind 1 time per Ante for $10 per roll")
 
 class Retcon(Voucher):
@@ -240,18 +236,21 @@ class Retcon(Voucher):
     def trigger(self):
         self.print_trigger("allows rerolling the Boss Blind unlimited times for $10 per roll")
 
-# Paint Brush and Palette aren't possible to implement right now
 class PaintBrush(Voucher):
     def __init__(self):
-        super().__init__(name="Paint Brush", description="Does nothing?")
+        super().__init__(name="Paint Brush", description="+1 hand size")
     def trigger(self):
-        self.print_trigger("does nothing...")
+        state.HAND_SIZE += 1
+        state.STARTING_HAND_SIZE += 1
+        self.print_trigger("increases hand size by one card")
 
 class Palette(Voucher):
     def __init__(self):
-        super().__init__(name="Palette", description="Does nothing?")
+        super().__init__(name="Palette", description="+1 hand size again")
     def trigger(self):
-        self.print_trigger("does nothing...")
+        state.HAND_SIZE += 1
+        state.STARTING_HAND_SIZE += 1
+        self.print_trigger("increases hand size by an additional one card")
 
 ARUCO_TO_VOUCHER = {
     615: Overstock,

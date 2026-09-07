@@ -1,25 +1,35 @@
+import math
+
 def format_balatro_number(value):
-    value = float(value)
+    try:
+        f_val = float(value)
+        if math.isinf(f_val) or math.isnan(f_val) or f_val > 1.79e308:
+            return "naneinf"
 
-    # 1 digit: up to 2 decimal places
-    if value < 10:
-        return f"{value:.2f}".rstrip("0").rstrip(".")
+        # 1 digit: up to 2 decimal places
+        if f_val < 10:
+            return f"{f_val:.2f}".rstrip("0").rstrip(".")
 
-    # 2 digits: up to 1 decimal place
-    elif value < 100:
-        return f"{value:.1f}".rstrip("0").rstrip(".")
+        # 2 digits: up to 1 decimal place
+        elif f_val < 100:
+            return f"{f_val:.1f}".rstrip("0").rstrip(".")
 
-    # 3+ digits: no decimals, rounded
-    elif value < 1_000_000:
-        return str(round(value))
+        # 3+ digits: no decimals, rounded
+        elif f_val < 1_000_000:
+            return str(round(f_val))
+    except (ValueError, TypeError, OverflowError):
+        pass
 
-    # From here on, use integer scientific notation
-    val_int = int(round(value))
+    # From here on, handle large integers and check against the 1.79e308 limit
+    try:
+        val_int = int(value)
+        if float(val_int) > 1.79e308:
+            return "naneinf"
+    except (ValueError, TypeError, OverflowError):
+        return "naneinf"
+
     s = str(val_int)
     exponent = len(s) - 1
-
-    if exponent >= 99999:
-        return "9E99999"
 
     exp_str = f"E{exponent}"
     allowed_mantissa_len = 7 - len(exp_str)
@@ -50,3 +60,8 @@ def format_balatro_number(value):
 
     r_str = str(rounded)
     return f"{r_str[0]}.{r_str[1:]}{exp_str}"
+
+def print_info(c, slot, price=0):
+    price_str = f" (${price})" if price != 0 else ""
+    print(f"  Slot {slot+1}: {c.name}{price_str}")
+    print(f"  Description: {c.description}")

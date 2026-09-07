@@ -38,16 +38,6 @@ class Card:
         state.RETRIGGERS = 0
 
     def trigger_held(self):
-        state.HELD_CARD_ORDER += 1
-        state.CARD_RANK = self.rank
-        state.CARD_SUIT = self.suit
-        
-        # Check for face cards (incorporating Pareidolia check)
-        if state.CARD_RANK in ["J", "Q", "K"] or joker_check(Pareidolia):
-            state.IS_FACE = True
-        else:
-            state.IS_FACE = False
-
         retrigger_joker = 0
         while state.RETRIGGERS >= 0:
             trigger_jokers("held_in_hand")

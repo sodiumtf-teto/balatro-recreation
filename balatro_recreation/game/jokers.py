@@ -725,7 +725,7 @@ class Throwback(Joker):
 class Constellation(Joker):
     def __init__(self):
         self.multmult = 1
-        super().__init__(name="Constellation", description="This Joker gains xz0.1 Mult every time a Planet card is used", rarity="Uncommon", buy_price=6)
+        super().__init__(name="Constellation", description="This Joker gains x0.1 Mult every time a Planet card is used", rarity="Uncommon", buy_price=6)
         
     def trigger(self, event):
         if event == "constellation":
@@ -1362,6 +1362,15 @@ class OopsAllSixes(Joker):
     def __init__(self):
         super().__init__(name="Oops! All 6s", description="Doubles all listed probabilities", rarity="Uncommon", buy_price=4, copyable=False)
     def trigger(self, event):
+        state.OOPS_ALL_SIXES = 0
+        for joker in state.JOKERS:
+            if joker.name == "Oops! All 6s":
+                state.OOPS_ALL_SIXES += 1
+    def perish(self):
+        for joker in state.JOKERS:
+            if self == joker:
+                state.JOKERS.remove(joker)
+                state.FILLED_JOKER_SLOTS -= 1
         state.OOPS_ALL_SIXES = 0
         for joker in state.JOKERS:
             if joker.name == "Oops! All 6s":
