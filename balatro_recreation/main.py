@@ -112,6 +112,7 @@ def run_booster_pack(detector):
         print("PACK SLOTS:")
         for i, card in enumerate(state.CURRENT_PACK.cards):
             print_info(card, i)
+        trigger_jokers("hallucination")
             
         selections_allowed = state.CURRENT_PACK.select_amount
     else:

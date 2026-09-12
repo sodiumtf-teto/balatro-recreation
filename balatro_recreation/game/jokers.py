@@ -1,12 +1,15 @@
 from collections import Counter
 from game import state
 from game.consumables import hand_levelup
-from hardware.arduino_serial import activate_joker, reset_tilt_speed, add_chips, add_mult, mult_mult
+from hardware.arduino_serial import activate_joker, reset_tilt_speed, add_chips, add_mult, mult_mult, add_money
 import random
 
 chosen_suit = None
 chosen_suit_changed = False
+chosen_rank = None
+chosen_rank_changed = False
 drunkards = 0
+jugglers = 0
 
 
 def trigger_jokers(event):
@@ -194,6 +197,27 @@ class Burglar(Joker):
             state.DISCARDS = 0
             self.print_trigger("gives +3 Hands")
             self.tilt()
+
+class TurtleBean(Joker):
+    def __init__(self):
+        self.hand_size = 5
+        super().__init__(name="Turtle Bean", description="+5 hand size, reduces by 1 each round", rarity="Uncommon", buy_price=6)
+        
+    def trigger(self, event):
+        if event == "start_of_blind":
+            state.HAND_SIZE += self.hand_size
+            self.print_trigger(f"gives +{self.hand_size} hand size")
+            self.tilt()
+        if event == "end_of_blind":
+            state.HAND_SIZE -= self.hand_size
+            self.hand_size -= 1
+            if self.hand_size > 0:
+                self.print_trigger(f"loses a hand size (currently {self.hand_size})")
+            else:
+                self.print_trigger(f"gets eaten")
+                self.tilt()
+                self.perish()
+    
 
 class RiffRaff(Joker):
     def __init__(self):
@@ -450,7 +474,7 @@ class Supernova(Joker):
 
 class GrosMichel(Joker):
     def __init__(self):
-        super().__init__(name="Gros Michel", description="+15 Mult, 1 in 6 chance this card is destroyed at end of round", rarity="Common", buy_price=5)
+        super().__init__(name="Gros Michel", description=f"+15 Mult, {2**state.OOPS_ALL_SIXES} in 6 chance this card is destroyed at end of round", rarity="Common", buy_price=5)
     def trigger(self, event):
         if event == "after_hand_played_main":
             add_mult(15)
@@ -468,7 +492,8 @@ class GrosMichel(Joker):
 
 class Cavendish(Joker):
     def __init__(self):
-        super().__init__(name="Cavendish", description="x3 Mult, 1 in 1000 chance this card is destroyed at the end of round", rarity="Common", buy_price=4)
+        from game.state import OOPS_ALL_SIXES
+        super().__init__(name="Cavendish", description=f"x3 Mult, {2**state.OOPS_ALL_SIXES} in 1000 chance this card is destroyed at the end of round", rarity="Common", buy_price=4)
     def trigger(self, event):
         if event == "after_hand_played_main":
             mult_mult(3)
@@ -512,7 +537,7 @@ class RideTheBus(Joker):
 
 class SpaceJoker(Joker):
     def __init__(self):
-        super().__init__(name="Space Joker", description=f"1 in 4 chance to upgrade level of played poker hand", rarity="Uncommon", buy_price=5)
+        super().__init__(name="Space Joker", description=f"{2**state.OOPS_ALL_SIXES} in 4 chance to upgrade level of played poker hand", rarity="Uncommon", buy_price=5)
     def trigger(self, event):
         if event == "before_hand_played_blueprint" and random.randint(0,3) + 2**state.OOPS_ALL_SIXES > 3:
             hand_levelup(state.HAND_TYPE)
@@ -535,6 +560,16 @@ class GreenJoker(Joker):
         if event == "after_hand_played_main" and self.mult > 0:
             add_mult(self.mult)
             self.print_trigger(f"gives +{self.mult} Mult")
+            self.tilt()
+
+
+class FortuneTeller(Joker):
+    def __init__(self):
+        super().__init__(name="Fortune Teller", description=f"+1 Mult per Tarot card used this run (Currently +{state.TAROTS_USED})", rarity="Common", buy_price=6)
+    def trigger(self, event):
+        if event == "after_hand_played_main" and state.TAROTS_USED > 0:
+            add_mult(state.TAROTS_USED)
+            self.print_trigger(f"gives +{state.TAROTS_USED} Mult")
             self.tilt()
 
 class SquareJoker(Joker):
@@ -967,6 +1002,19 @@ class Vagabond(Joker):
             self.print_trigger(f"creates a {generated_tarot.name}")
             self.tilt()
 
+class ToDoList(Joker):
+    def __init__(self):
+        self.selected_hand = "None"
+        super().__init__(name="To Do List", description=f"Earn $4 if poker hand is a {self.selected_hand}", rarity="Common", buy_price=4)
+    def trigger(self, event):
+        if event == "before_hand_played_blueprint" and state.HAND_TYPE == self.selected_hand:
+            self.print_trigger(f"gives $4")
+            self.tilt()
+        if event == "end_of_blind":
+            self.selected_hand = random.choice(list(state.BASE_HAND_LEVELS.keys()))
+            self.print_trigger(f"sets selected hand to {self.selected_hand}")
+            self.tilt()
+
 
 
 ###########################################################################
@@ -1065,7 +1113,7 @@ class Scholar(Joker):
 
 class EightBall(Joker):
     def __init__(self):
-        super().__init__(name="8 Ball", description=f"1 in 4 chance for each played 8 to create a Tarot card when scored (Must have room)", rarity="Common", buy_price=5)
+        super().__init__(name="8 Ball", description=f"{2**state.OOPS_ALL_SIXES} in 4 chance for each played 8 to create a Tarot card when scored (Must have room)", rarity="Common", buy_price=5)
     def trigger(self, event):
         if event == "on_card_score_blueprint" and state.CARD_RANK == "8" and random.randint(0,3) + 2**state.OOPS_ALL_SIXES > 3 and state.FILLED_CONSUMABLE_SLOTS < state.MAX_CONSUMABLE_SLOTS:
             from game.consumables import ARUCO_TO_CONSUMABLE
@@ -1089,7 +1137,7 @@ class EightBall(Joker):
 
 class BusinessCard(Joker):
     def __init__(self):
-        super().__init__(name="Business Card", description=f"Played face cards have a 1 in 2 chance to give $2 when scored", rarity="Common", buy_price=4)
+        super().__init__(name="Business Card", description=f"Played face cards have a {2**state.OOPS_ALL_SIXES} in 2 chance to give $2 when scored", rarity="Common", buy_price=4)
     def trigger(self, event):
         if event == "on_card_score_blueprint" and state.IS_FACE and random.randint(0,1) + 2**state.OOPS_ALL_SIXES > 1:
             state.MONEY += 2
@@ -1098,7 +1146,7 @@ class BusinessCard(Joker):
 
 class Bloodstone(Joker):
     def __init__(self):
-        super().__init__(name="Bloodstone", description=f"1 in 2 chance for played cards with Heart suit to give x1.5 Mult when scored", rarity="Uncommon", buy_price=7)
+        super().__init__(name="Bloodstone", description=f"{2**state.OOPS_ALL_SIXES} in 2 chance for played cards with Heart suit to give x1.5 Mult when scored", rarity="Uncommon", buy_price=7)
     def trigger(self, event):
         from game.scoring import is_suit
         if event == "on_card_score_blueprint" and is_suit(state.CARD_SUIT, "Hearts") and random.randint(0,1) + 2**state.OOPS_ALL_SIXES > 1:
@@ -1160,7 +1208,8 @@ class WalkieTalkie(Joker):
 class AncientJoker(Joker):
     def __init__(self):
         global chosen_suit, chosen_suit_changed
-        chosen_suit = random.choice(["Hearts", "Clubs", "Spades", "Diamonds"])
+        if not chosen_suit:
+            chosen_suit = random.choice(["Hearts", "Clubs", "Spades", "Diamonds"])
         super().__init__(name="Ancient Joker", description=f"Each played card with {chosen_suit} gives x1.5 Mult when scored, suit changes at end of round", rarity="Rare", buy_price=8)
     def trigger(self, event):
         global chosen_suit, chosen_suit_changed
@@ -1178,6 +1227,14 @@ class AncientJoker(Joker):
             self.print_trigger(f"changes suit to {chosen_suit}")
             self.tilt()
             chosen_suit_changed = True
+    def perish(self):
+            for joker in state.JOKERS:
+                if self == joker:
+                    state.JOKERS.remove(joker)
+                    state.FILLED_JOKER_SLOTS -= 1
+            if not joker_check(AncientJoker):
+                global chosen_suit
+                chosen_suit = None
 
 class SmileyFace(Joker):
     def __init__(self):
@@ -1232,17 +1289,16 @@ class Triboulet(Joker):
 ###########################################################################
 # END OF BLIND
 ###########################################################################
-class ToDoList(Joker):
+class GiftCard(Joker):
     def __init__(self):
-        self.selected_hand = "None"
-        super().__init__(name="To Do List", description=f"Earn $4 if poker hand is a", rarity="Common", buy_price=4)
+        super().__init__(name="Gift Card", description=f"Add $1 of sell value to every Joker and Consumable card at end of round", rarity="Uncommon", buy_price=6)
     def trigger(self, event):
-        if event == "before_hand_played_blueprint" and state.HAND_TYPE == self.selected_hand:
-            self.print_trigger(f"gives $4")
-            self.tilt()
         if event == "end_of_blind":
-            self.selected_hand = random.choice(list(state.BASE_HAND_LEVELS.keys()))
-            self.print_trigger(f"sets selected hand to {self.selected_hand}")
+            for joker in state.JOKERS:
+                joker.buy_price += 2
+            for consumable in state.CONSUMABLES:
+                consumable.buy_price += 2
+            self.print_trigger(f"increases value of all Jokers by $1")
             self.tilt()
 
 class Egg(Joker):
@@ -1323,6 +1379,15 @@ class Baron(Joker):
             self.print_trigger(f"gives x1.5 mult")
             self.tilt()
 
+class ReservedParking(Joker):
+    def __init__(self):
+        super().__init__(name="Reserved Parking", description=f"Each face card held in hand has a {2**state.OOPS_ALL_SIXES} in 2 chance to give $1", rarity="Common", buy_price=6)
+    def trigger(self, event):
+        if event == "held_in_hand" and state.IS_FACE and random.randint(0,1) + 2**state.OOPS_ALL_SIXES > 1:
+            add_money(1)
+            self.print_trigger(f"gives $1")
+            self.tilt()
+
 ###########################################################################
 # DISCARD
 ###########################################################################
@@ -1339,6 +1404,36 @@ class FacelessJoker(Joker):
             if state.DISCARD_CARD_ORDER == len(state.PLAYED_CARDS) and self.faces_discarded >= 3:
                 self.print_trigger(f"gives $5")
                 self.tilt()
+
+class MailInRebate(Joker):
+    def __init__(self):
+        global chosen_rank, chosen_rank_changed
+        from game.card import RANKS
+        if not chosen_rank:
+            chosen_rank = random.choice(RANKS)
+        super().__init__(name="Mail-In Rebate", description=f"Earn $5 for each discarded {chosen_rank}, rank changes every round", rarity="Common", buy_price=4)
+    def trigger(self, event):
+        global chosen_rank, chosen_rank_changed
+        from game.card import RANKS
+        if event == "start_of_blind":
+            chosen_rank_changed = False
+        if event == "discard_per_card" and state.CARD_RANK == chosen_rank:
+            add_money(5)
+            self.print_trigger(f"gives $5")
+            self.tilt()
+        if event == "end_of_blind" and chosen_rank_changed == False:
+            chosen_rank = random.choice(RANKS)
+            self.print_trigger(f"sets selected rank to {chosen_rank}")
+            self.tilt()
+            chosen_rank_changed = True
+    def perish(self):
+        for joker in state.JOKERS:
+            if self == joker:
+                state.JOKERS.remove(joker)
+                state.FILLED_JOKER_SLOTS -= 1
+        if not joker_check(MailInRebate):
+            global chosen_rank
+            chosen_rank = None
 
 
 ###########################################################################
@@ -1446,6 +1541,7 @@ class Shortcut(Joker):
 class Pareidolia(Joker):
     def __init__(self):
         super().__init__(name="Pareidolia", description="All cards are considered face cards", rarity="Uncommon", buy_price=5, copyable=False)
+# COME BACK TO LATER
 class Luchador(Joker):
     def __init__(self):
         super().__init__(name="Luchador", description="Sell this card to disable the current Boss Blind", rarity="Uncommon", buy_price=5)
@@ -1456,6 +1552,43 @@ class Luchador(Joker):
                 state.FILLED_JOKER_SLOTS -= 1
         if state.GAMESTATE == state.GameState.game_play and state.CURRENT_BLIND == "boss" and not state.BOSS_DISABLED:
             state.BOSS_DISABLED = True
+# ENSURE PROPER INTERACTION WITH BLUEPRINT BRAINSTORM
+class DietCola(Joker):
+    def __init__(self):
+        super().__init__(name="Diet Cola", description="Sell this card to create a free Double Tag", rarity="Uncommon", buy_price=6)
+    def perish(self):
+        from game.blinds import DoubleTag
+        for joker in state.JOKERS:
+            if self == joker:
+                state.JOKERS.remove(joker)
+                state.FILLED_JOKER_SLOTS -= 1
+        self.print_trigger("creates a Double Tag")
+        self.tilt()
+        state.SKIP_TAGS.append(DoubleTag())
+class Hallucination(Joker):
+    def __init__(self):
+        super().__init__(name="Hallucination", description=f"{2**state.OOPS_ALL_SIXES} in 2 chance to create a Tarot card when any Booster Pack is opened (Must have room)", rarity="Common", buy_price=4)
+    def trigger(self, event):
+        if event == "hallucination" and random.randint(0,1) + 2**state.OOPS_ALL_SIXES > 1 and state.FILLED_CONSUMABLE_SLOTS < state.MAX_CONSUMABLE_SLOTS:
+            from game.consumables import ARUCO_TO_CONSUMABLE
+            allow_duplicates = joker_check(Showman)
+            valid_classes = [
+                ARUCO_TO_CONSUMABLE[aruco_id]
+                for aruco_id in range(199, 206)
+            ]
+            if not allow_duplicates:
+                existing_types = {type(c) for c in state.CONSUMABLES}
+                valid_classes = [
+                    cls for cls in valid_classes
+                    if cls not in existing_types
+                ]
+            tarot_class = random.choice(valid_classes)
+            generated_tarot = tarot_class()
+            state.CONSUMABLES.append(generated_tarot)
+            state.FILLED_CONSUMABLE_SLOTS += 1
+            self.print_trigger(f"creates a {generated_tarot.name}")
+            self.tilt()
+
 
 class MrBones(Joker):
     def __init__(self):
@@ -1543,6 +1676,25 @@ class Drunkard(Joker):
                 state.JOKERS.remove(joker)
                 state.FILLED_JOKER_SLOTS -= 1
         self.trigger()
+class Juggler(Joker):
+    def __init__(self):
+        super().__init__(name="Juggler", description="+1 hand size each round", rarity="Common", buy_price=4, copyable=False)
+    def trigger(self, event):
+        global jugglers
+        state.HAND_SIZE -= jugglers
+        state.STARTING_HAND_SIZE -= jugglers
+        jugglers = 0
+        for joker in state.JOKERS:
+            if joker.name == "Juggler":
+                jugglers += 1
+        state.HAND_SIZE += jugglers
+        state.STARTING_HAND_SIZE += jugglers
+    def perish(self):
+        for joker in state.JOKERS:
+            if self == joker:
+                state.JOKERS.remove(joker)
+                state.FILLED_JOKER_SLOTS -= 1
+        self.trigger()
 
 
 def is_joker_generation_allowed(joker_class):
@@ -1624,12 +1776,21 @@ ARUCO_TO_JOKER = {
     71: Baron,
     73: Rocket,
     74: Obelisk,
+    76: Luchador,
     77: Photograph,
+    78: GiftCard,
+    79: TurtleBean,
+    81: ReservedParking,
+    82: MailInRebate,
     83: ToTheMoon,
+    84: Hallucination,
+    85: FortuneTeller,
+    86: Juggler,
     87: Drunkard,
     89: GoldenJoker,
     91: BaseballCard,
     92: Bull,
+    93: DietCola,
     96: Popcorn,
     97: SpareTrousers,
     98: AncientJoker,

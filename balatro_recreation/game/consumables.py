@@ -40,6 +40,7 @@ class TheFool(Consumable):
         self.perish()
         state.CONSUMABLES.append(state.LAST_USED_CONSUMABLE)
         self.print_trigger(f"creates a {state.LAST_USED_CONSUMABLE.name}")
+        state.TAROTS_USED += 1
 
 class TheHighPriestess(Consumable):
     def __init__(self):
@@ -80,6 +81,7 @@ class TheHighPriestess(Consumable):
             state.CONSUMABLES.append(generated_planet)
             state.FILLED_CONSUMABLE_SLOTS += 1
             self.print_trigger(f"creates a {generated_planet.name}")
+            state.TAROTS_USED += 1
             state.LAST_USED_CONSUMABLE = self
 
 class TheEmperor(Consumable):
@@ -121,6 +123,7 @@ class TheEmperor(Consumable):
             state.CONSUMABLES.append(generated_tarot)
             state.FILLED_CONSUMABLE_SLOTS += 1
             self.print_trigger(f"creates a {generated_tarot.name}")
+            state.TAROTS_USED += 1
             state.LAST_USED_CONSUMABLE = self
 
 class TheHermit(Consumable):
@@ -135,11 +138,13 @@ class TheHermit(Consumable):
             add_money(state.MONEY)
             state.LAST_USED_CONSUMABLE = self
             self.perish()
+            state.TAROTS_USED += 1
         elif(state.MONEY > 20):
             self.print_trigger(f"gives $20")
             add_money(20)
             state.LAST_USED_CONSUMABLE = self
             self.perish()
+            state.TAROTS_USED += 1
 
 class TheHangedMan(Consumable):
     def __init__(self):
@@ -150,6 +155,7 @@ class TheHangedMan(Consumable):
             self.perish()
             self.print_trigger("lets you honorably kill off up to two cards")
             state.LAST_USED_CONSUMABLE = self
+            state.TAROTS_USED += 1
         else:
             self.print_trigger("has no cards to select!")
 
@@ -170,11 +176,13 @@ class Temperance(Consumable):
             self.print_trigger(f"gives ${money_gain}")
             add_money(money_gain )
             state.LAST_USED_CONSUMABLE = self
+            state.TAROTS_USED += 1
             self.perish()
         elif(money_gain > 50):
             self.print_trigger(f"gives $50")
             add_money(50)
             state.LAST_USED_CONSUMABLE = self
+            state.TAROTS_USED += 1
             self.perish()
 
 class Judgement(Consumable):
@@ -235,6 +243,7 @@ class Judgement(Consumable):
             self.print_trigger(f"creates a {generated_joker.name}")
             state.JOKERS.append(generated_joker)
             state.LAST_USED_CONSUMABLE = self
+            state.TAROTS_USED += 1
             self.perish()
         else:
             self.print_trigger("cannot make a Joker, no room!")
