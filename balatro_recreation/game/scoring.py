@@ -5,25 +5,18 @@ from game.jokers import Splash, FourFingers, Shortcut, Pareidolia, SmearedJoker,
 from game.vouchers import voucher_check, Observatory
 from hardware.arduino_serial import activate_scored_card, start_scoring_phase, add_mult, add_chips, mult_mult
 
-# Standard Ace-high ranking
 RANK_ORDER_HIGH = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
-# Ace-low ranking (Ace acts as 1)
 RANK_ORDER_LOW = {'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13}
         
 def is_suit(card, target_suit):
-    """Evaluates if a card object matches a specific suit, accounting for Jokers and Enhancements."""
-    # Safely extract the suit attribute if an object is passed
     card_suit = getattr(card, 'suit', card) 
 
-    # Normal suit match
     if card_suit == target_suit:
         return True
 
-    # Wild Card enhancement
     if getattr(card, 'enhancement', None) == "Wild" or getattr(state, 'CARD_ENHANCEMENT', None) == "Wild":
         return True
 
-    # Smeared Joker: H==D, S==C
     if any(isinstance(j, SmearedJoker) for j in state.JOKERS):
         if {card_suit, target_suit} <= {"Hearts", "Diamonds"}:
             return True
@@ -38,7 +31,6 @@ def evaluate_hand(hand):
         state.SCORE = 0
         return "None"
 
-    # Extract directly from objects
     ranks = [card.rank for card in hand]
     rank_counts = Counter(ranks)
     
@@ -48,7 +40,6 @@ def evaluate_hand(hand):
     min_flush_cards = 4 if has_four_fingers else 5
     target_straight_len = 4 if has_four_fingers else 5
 
-    # --- Check Straight (Supporting Ace-High, Ace-Low, and Shortcut Gaps) ---
     is_straight = False
     straight_cards = []
 
@@ -72,14 +63,11 @@ def evaluate_hand(hand):
                 return True, list(combo)
         return False, []
 
-    # 1. Test Ace-High Straight
     is_straight, straight_cards = test_straight(ranks, RANK_ORDER_HIGH)
 
-    # 2. Test Ace-Low Straight if not found and Ace is present
     if not is_straight and 'A' in ranks:
         is_straight, straight_cards = test_straight(ranks, RANK_ORDER_LOW)
 
-    # --- Check Flush ---
     is_flush = False
     flush_suit = None
 
@@ -93,7 +81,6 @@ def evaluate_hand(hand):
 
     is_straight_flush = is_straight and is_flush
 
-    # --- Determine Hand Type ---
     state.HAND_TYPE = "None"
     scoring_ranks = []
 
@@ -138,7 +125,6 @@ def evaluate_hand(hand):
         state.HAND_TYPE = "None"
         scoring_ranks = []
 
-    # Populate state.IS_HAND matches
     counts = list(rank_counts.values())
     if any(c >= 5 for c in counts) and is_flush: state.IS_HAND.append("Flush Five")
     if 3 in counts and 2 in counts and is_flush: state.IS_HAND.append("Flush House")
@@ -153,16 +139,11 @@ def evaluate_hand(hand):
     if any(c >= 2 for c in counts): state.IS_HAND.append("Pair")
     if len(counts) > 0: state.IS_HAND.append("High Card")
 
-    # Mark scoring cards
     state.SCORED_CARDS = []
     if state.HAND_TYPE in ["Flush", "Straight", "Straight Flush"]:
-        # In a perfect Balatro clone, a Flush with Four Fingers on a 5-card hand 
-        # only scores the 4 suited cards unless Splash is present. I left this as 
-        # `list(hand)` to match your original logic, but keep that edge case in mind!
         state.SCORED_CARDS = list(hand) 
     elif scoring_ranks:
         state.SCORED_CARDS = [card for card in hand if card.rank in scoring_ranks]
-        # Ensures that only the true High Card is scored rather than the first card in the array
         if state.HAND_TYPE == "High Card" and state.SCORED_CARDS:
             highest_rank = unique_ranks_high_sorted[-1]
             state.SCORED_CARDS = [next(card for card in hand if card.rank == highest_rank)]
@@ -173,7 +154,8 @@ def evaluate_hand(hand):
     trigger_jokers("before_hand_played")
     trigger_jokers("before_hand_played_blueprint")
 
-    state.TIMES_PLAYED[state.HAND_TYPE] += 1
+    if not getattr(state, 'SIMULATION_MODE', False):
+        state.TIMES_PLAYED[state.HAND_TYPE] += 1
 
     if not state.SKIP_HAND:
         state.CHIPS, state.MULT = state.HAND_SCORES[state.HAND_TYPE]
@@ -201,7 +183,7 @@ def evaluate_hand(hand):
                 state.BOSS_BLIND.trigger()
             if card not in state.DEBUFFED_CARDS:
                 card.trigger()
-            else:
+            elif not getattr(state, 'SIMULATION_MODE', False):
                 activate_scored_card()
                 print(f"Card '{card.name}' is debuffed and will not be scored.")
 
@@ -212,7 +194,6 @@ def evaluate_hand(hand):
             state.HELD_CARD_ORDER += 1
             state.CARD_RANK = card.rank
             state.CARD_SUIT = card.suit
-            # Check for face cards (incorporating Pareidolia check)
             if state.CARD_RANK in ["J", "Q", "K"] or joker_check(Pareidolia):
                 state.IS_FACE = True
             else:
@@ -247,7 +228,8 @@ def evaluate_hand(hand):
                 for item in state.CONSUMABLES:
                     if getattr(item, 'name', '') == target_planet:
                         mult_mult(1.5)
-                        print(f"Observatory triggered! {target_planet} gave x1.5 Mult.")
+                        if not getattr(state, 'SIMULATION_MODE', False):
+                            print(f"Observatory triggered! {target_planet} gave x1.5 Mult.")
 
         state.SCORE = state.CHIPS * state.MULT
     else:
@@ -256,5 +238,6 @@ def evaluate_hand(hand):
 
     state.IS_HAND.clear()
     state.IS_HAND = ["None", "None"]
+    state.LOWEST_RANK_HELD = None
     state.PLAYED_CARD_ORDER = 0
     state.HELD_CARD_ORDER = 0

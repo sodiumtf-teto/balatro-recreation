@@ -60,8 +60,3 @@ def format_balatro_number(value):
 
     r_str = str(rounded)
     return f"{r_str[0]}.{r_str[1:]}{exp_str}"
-
-def print_info(c, slot, price=0):
-    price_str = f" (${price})" if price != 0 else ""
-    print(f"  Slot {slot+1}: {c.name}{price_str}")
-    print(f"  Description: {c.description}")

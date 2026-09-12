@@ -42,11 +42,11 @@ def select_boss_blind():
         TheHook(), TheOx(), TheHouse(), TheWall(), TheWheel(), TheArm(),
         TheClub(), TheFish(), ThePsychic(), TheGoad(), TheWater(),
         TheWindow(), TheManacle(), TheEye(), TheMouth(), ThePlant(),
-        TheSerpent(), ThePillar(), TheNeedle(), TheHead(), TheTooth(),
-        TheFlint(), TheMark()
+        TheSerpent(), TheNeedle(), TheHead(), TheTooth(),
+        TheFlint()
     ]
     showdown_blinds = [
-        AmberAcorn(), VerdantLeaf(), VioletVessel(), CrimsonHeart(), CeruleanBell()
+        VerdantLeaf(), VioletVessel(), CrimsonHeart(), CeruleanBell()
     ]
     is_showdown = (state.ANTE > 0 and state.ANTE % 8 == 0)
     target_pool = showdown_blinds if is_showdown else normal_blinds
@@ -371,8 +371,9 @@ class BuffoonTag(SkipTag):
     def __init__(self):
         super().__init__(name="Buffoon Tag", description="Gives a free Mega Buffoon Pack", min_ante=2)
     def trigger(self):
-        from game.booster_packs import BuffoonPack
-        state.CURRENT_PACK = BuffoonPack()
+        from game.booster_packs import MegaBuffoonPack
+        state.CURRENT_PACK = MegaBuffoonPack()
+        state.CURRENT_PACK.trigger()
         state.GAMESTATE = state.GameState.booster_pack
         self.print_trigger(f"gives a free Mega Buffoon Pack")
 
@@ -444,6 +445,11 @@ class HandyTag(SkipTag):
 class InvestmentTag(SkipTag):
     def __init__(self):
         super().__init__(name="Investment Tag", description="Gain $25 after defeating the next Boss Blind")
+    def trigger(self):
+        print("\nDefeat the Boss Blind: ", end="")
+        for cash in range(25):
+            state.MONEY_GAIN += 1
+            print("$", end="")
 
 class JuggleTag(SkipTag):
     def __init__(self):
@@ -543,9 +549,9 @@ class TopUpTag(SkipTag):
                 joker_class = random.choice(valid_jokers)
                 generated_joker = joker_class()
                 
+                
                 self.print_trigger(f"creates a {generated_joker.name}")
                 state.JOKERS.append(generated_joker)
-                # Removed self.perish() here as the queue handles removal
             else:
                 self.print_trigger("cannot make a Joker, no room!")
                 break
@@ -559,8 +565,9 @@ class CharmTag(SkipTag):
     def __init__(self):
         super().__init__(name="Charm Tag", description="Gives a free Mega Arcana Pack")
     def trigger(self):
-        from game.booster_packs import ArcanaPack
-        state.CURRENT_PACK = ArcanaPack()
+        from game.booster_packs import MegaArcanaPack
+        state.CURRENT_PACK = MegaArcanaPack()
+        state.CURRENT_PACK.trigger()
         state.GAMESTATE = state.GameState.booster_pack
         self.print_trigger("gives a free Mega Arcana Pack")
 
@@ -570,6 +577,7 @@ class EtherealTag(SkipTag):
     def trigger(self):
         from game.booster_packs import SpectralPack
         state.CURRENT_PACK = SpectralPack()
+        state.CURRENT_PACK.trigger()
         state.GAMESTATE = state.GameState.booster_pack
         self.print_trigger("gives a free Spectral Pack")
 
@@ -577,8 +585,9 @@ class MeteorTag(SkipTag):
     def __init__(self):
         super().__init__(name="Meteor Tag", description="Gives a free Mega Celestial Pack", min_ante=2)
     def trigger(self):
-        from game.booster_packs import CelestialPack
-        state.CURRENT_PACK = CelestialPack()
+        from game.booster_packs import MegaCelestialPack
+        state.CURRENT_PACK = MegaCelestialPack()
+        state.CURRENT_PACK.trigger()
         state.GAMESTATE = state.GameState.booster_pack
         self.print_trigger("gives a free Mega Celestial Pack")
 
@@ -586,8 +595,9 @@ class StandardTag(SkipTag):
     def __init__(self):
         super().__init__(name="Standard Tag", description="Gives a free Mega Standard Pack", min_ante=2)
     def trigger(self):
-        from game.booster_packs import StandardPack
-        state.CURRENT_PACK = StandardPack()
+        from game.booster_packs import MegaStandardPack
+        state.CURRENT_PACK = MegaStandardPack()
+        state.CURRENT_PACK.trigger()
         state.GAMESTATE = state.GameState.booster_pack
         self.print_trigger("gives a free Mega Standard Pack")
 

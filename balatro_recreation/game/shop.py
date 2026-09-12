@@ -11,10 +11,10 @@ def initialize_shop():
             tag.trigger()
             break
     # Reset reroll cost for a new shop, then check D6
-    state.REROLL_COST = 5 
+    state.REROLL_COST = state.BASE_REROLL_COST 
     for tag in state.SKIP_TAGS:
         if tag.name == "D6 Tag":
-            state.REROLL_COST = 0
+            state.FREE_REROLLS += 1
             state.SKIP_TAGS.remove(tag)
             tag.trigger()
             break
@@ -147,7 +147,7 @@ def reroll(free_items=False):
 
 
 def fill_new_shop_slots(free_items=False):
-    from game.jokers import ARUCO_TO_JOKER, joker_check, Showman
+    from game.jokers import ARUCO_TO_JOKER, joker_check, Showman, is_joker_generation_allowed
     from game.consumables import ARUCO_TO_CONSUMABLE
     from game.blinds import tag_check, RareTag, UncommonTag
     
@@ -187,17 +187,21 @@ def fill_new_shop_slots(free_items=False):
                     target_rarity = "Rare"
 
                 valid_jokers = [
-                    j_class for j_class in ARUCO_TO_JOKER.values() 
+                    j_class
+                    for j_class in ARUCO_TO_JOKER.values()
                     if j_class().rarity == target_rarity
+                    and is_joker_generation_allowed(j_class)
                 ]
 
                 if not allow_duplicates:
                     valid_jokers = [cls for cls in valid_jokers if cls not in shop_excluded_jokers]
 
                 if not valid_jokers:
-                    valid_jokers = list(ARUCO_TO_JOKER.values())
-                    if not allow_duplicates:
-                        valid_jokers = [cls for cls in valid_jokers if cls not in shop_excluded_jokers]
+                    valid_jokers = [
+                        j_class
+                        for j_class in ARUCO_TO_JOKER.values()
+                        if is_joker_generation_allowed(j_class)
+                    ]
 
                 if valid_jokers:
                     joker_class = random.choice(valid_jokers)
@@ -224,7 +228,7 @@ def fill_new_shop_slots(free_items=False):
         elif selected_option == 'planet':
             valid_classes = [
                 ARUCO_TO_CONSUMABLE[aruco_id]
-                for aruco_id in range(221, 229)
+                for aruco_id in range(221, 230)
             ]
             if not allow_duplicates:
                 valid_classes = [cls for cls in valid_classes if cls not in shop_excluded_planets]
@@ -242,7 +246,7 @@ def fill_new_shop_slots(free_items=False):
         elif selected_option == 'spectral':
             valid_classes = [
                 ARUCO_TO_CONSUMABLE[aruco_id]
-                for aruco_id in range(233, 237)
+                for aruco_id in range(233, 236)
             ]
             if not allow_duplicates:
                 valid_classes = [cls for cls in valid_classes if cls not in shop_excluded_spectrals]

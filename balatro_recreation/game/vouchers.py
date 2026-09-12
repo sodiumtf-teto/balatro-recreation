@@ -213,7 +213,8 @@ class Hieroglyph(Voucher):
         super().__init__(name="Hieroglyph", description="-1 Ante, -1 hand each round")
     def trigger(self):
         state.ANTE -= 1
-        state.HANDS_PER_ROUND -= 1
+        state.STARTING_HANDS -= 1
+        state.HANDS -= 1
         self.print_trigger(f"sets ante to ante {state.ANTE}, -1 hand each round")
 
 class Petroglyph(Voucher):
@@ -221,7 +222,8 @@ class Petroglyph(Voucher):
         super().__init__(name="Petroglyph", description="-1 Ante again, -1 discard each round")
     def trigger(self):
         state.ANTE -= 1
-        state.DISCARDS_PER_ROUND -= 1
+        state.STARTING_DISCARDS -= 1
+        state.DISCARDS -= 1
         self.print_trigger(f"sets ante to ante {state.ANTE}, -1 discard each round")
 
 class DirectorsCut(Voucher):

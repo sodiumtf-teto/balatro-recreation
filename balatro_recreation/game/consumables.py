@@ -182,7 +182,7 @@ class Judgement(Consumable):
         super().__init__(name="Judgement", description="Creates a random Joker card (Must have room)", type="Tarot", buy_price=3)
         
     def trigger(self):
-        from game.jokers import ARUCO_TO_JOKER, joker_check, Showman
+        from game.jokers import ARUCO_TO_JOKER, joker_check, Showman, is_joker_generation_allowed
         
         if state.FILLED_JOKER_SLOTS < state.MAX_JOKER_SLOTS:
             generated_weight = random.randint(0, 99)
@@ -193,10 +193,21 @@ class Judgement(Consumable):
                 target_rarity = "Uncommon"
             else:
                 target_rarity = "Rare"
+                
+            # 1. Build a baseline pool of legally allowed Jokers
+            legal_joker_classes = [
+                j_class
+                for j_class in ARUCO_TO_JOKER.values()
+                if j_class().rarity != "Legendary"
+                and is_joker_generation_allowed(j_class)
+            ]
+                
+            # 2. Filter by target rarity
             valid_jokers = [
-                j_class for j_class in ARUCO_TO_JOKER.values() 
+                j_class for j_class in legal_joker_classes 
                 if j_class().rarity == target_rarity
             ]
+            
             allow_duplicates = joker_check(Showman)
             if not allow_duplicates:
                 existing_types = {type(j) for j in state.JOKERS}
@@ -204,13 +215,16 @@ class Judgement(Consumable):
                     cls for cls in valid_jokers 
                     if cls not in existing_types
                 ]
+                
+            # 3. Fallback if rarity pool is empty (but still respect legal_joker_classes)
             if not valid_jokers:
-                valid_jokers = list(ARUCO_TO_JOKER.values())
+                valid_jokers = list(legal_joker_classes)
                 if not allow_duplicates:
                     valid_jokers = [
                         cls for cls in valid_jokers 
                         if cls not in existing_types
                     ]
+                    
             if not valid_jokers:
                 self.print_trigger("could not create a Joker, all valid Jokers are already owned!")
                 return
@@ -346,12 +360,13 @@ class Wraith(Consumable):
         super().__init__(name="Wraith", description="Creates a random Rare Joker, sets money to $0", type="Spectral", buy_price=4)
         
     def trigger(self):
-        from game.jokers import ARUCO_TO_JOKER, joker_check, Showman
+        from game.jokers import ARUCO_TO_JOKER, joker_check, Showman, is_joker_generation_allowed
         if state.FILLED_JOKER_SLOTS < state.MAX_JOKER_SLOTS:
             add_money(0 - state.MONEY)
             valid_jokers = [
-                j_class for j_class in ARUCO_TO_JOKER.values() 
+                j_class for j_class in ARUCO_TO_JOKER.values()
                 if j_class().rarity == "Rare"
+                and is_joker_generation_allowed(j_class)
             ]
             
             # Showman duplicate check
@@ -361,7 +376,11 @@ class Wraith(Consumable):
                 valid_jokers = [cls for cls in valid_jokers if cls not in existing_types]
                 
             if not valid_jokers:
-                valid_jokers = list(ARUCO_TO_JOKER.values())
+                valid_jokers = [
+                    j_class
+                    for j_class in ARUCO_TO_JOKER.values()
+                    if is_joker_generation_allowed(j_class)
+                ]
                 if not allow_duplicates:
                     valid_jokers = [cls for cls in valid_jokers if cls not in existing_types]
 
@@ -385,14 +404,14 @@ class Immolate(Consumable):
     def trigger(self):
         if state.GAMESTATE in {state.GameState.game_play, state.GameState.booster_pack}:
             cards_selected = []
-            while len(cards_selected) < 5:
-                random_card = random.randint(1, 8)
-                if random_card not in cards_selected:
-                    cards_selected.append(random_card)
+            while len(cards_selected) < 5 and state.HELD_CARDS:
+                random_card = random.choice(state.HELD_CARDS)
+                cards_selected.append(random_card)
+                state.HELD_CARDS.remove(random_card)
             self.perish()
             self.print_trigger("kills off cards ", end="")
             for card in cards_selected:
-                print(f"{card} ", end="")
+                print(f"{card.name} ", end="")
             print("")
         else:
             self.print_trigger("has no cards to select!")
@@ -412,17 +431,18 @@ class Ankh(Consumable):
             self.perish()
         else:
             self.print_trigger("has no Jokers to duplicate")
-
-class Soul(Consumable):
+            
+class TheSoul(Consumable):
     def __init__(self):
-        super().__init__(name="Soul", description="Creates a Legendary Joker (Must have room)", type="Spectral", buy_price=4)
+        super().__init__(name="The Soul", description="Creates a Legendary Joker (Must have room)", type="Spectral", buy_price=4)
         
     def trigger(self):
-        from game.jokers import ARUCO_TO_JOKER, joker_check, Showman
+        from game.jokers import ARUCO_TO_JOKER, joker_check, Showman, is_joker_generation_allowed
         if state.FILLED_JOKER_SLOTS < state.MAX_JOKER_SLOTS:
             valid_jokers = [
-                j_class for j_class in ARUCO_TO_JOKER.values() 
+                j_class for j_class in ARUCO_TO_JOKER.values()
                 if j_class().rarity == "Legendary"
+                and is_joker_generation_allowed(j_class)
             ]
             
             # Showman duplicate check
@@ -430,11 +450,6 @@ class Soul(Consumable):
             if not allow_duplicates:
                 existing_types = {type(j) for j in state.JOKERS}
                 valid_jokers = [cls for cls in valid_jokers if cls not in existing_types]
-                
-            if not valid_jokers:
-                valid_jokers = list(ARUCO_TO_JOKER.values())
-                if not allow_duplicates:
-                    valid_jokers = [cls for cls in valid_jokers if cls not in existing_types]
 
             if not valid_jokers:
                 self.print_trigger("could not create a Legendary Joker, all valid Jokers owned!")
@@ -482,7 +497,7 @@ ARUCO_TO_CONSUMABLE = {
     233: Wraith,
     234: Immolate,
     235: Ankh,
-    236: Soul,
+    236: TheSoul,
     237: BlackHole
 }
 

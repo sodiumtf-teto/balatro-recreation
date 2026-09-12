@@ -1,5 +1,5 @@
 import os
-import requests, cv2, time, serial
+import requests, cv2, time, serial, math, copy
 from utils import format_balatro_number
 from game import shop, state
 import numpy as np
@@ -13,7 +13,7 @@ from game.decks import next_deck, apply_deck
 from game.stakes import next_stake, apply_stake
 from game.blinds import calculate_blinds, select_boss_blind, select_skip_tags, tag_check, InvestmentTag, BossTag, BuffoonTag, CharmTag, EtherealTag, MeteorTag, StandardTag, EconomyTag, GarbageTag, HandyTag, SpeedTag, OrbitalTag, TopUpTag, DoubleTag, CouponTag, TheWheel, TheOx
 from game.scoring import evaluate_hand
-from game.jokers import trigger_jokers, joker_check, sync_jokers, sync_played_jokers, MrBones, ToTheMoon
+from game.jokers import trigger_jokers, joker_check, sync_jokers, sync_played_jokers, MrBones, ToTheMoon, CreditCard
 from game.consumables import sync_consumables, sync_played_consumables
 from game.card import sync_cards, sync_held_cards
 from game.shop import initialize_shop, reroll
@@ -187,6 +187,7 @@ def run_booster_pack(detector):
                 sell_items_in_play_area()
             else:
                 print("Skipping remaining booster pack choices.")
+                trigger_jokers("redcard")
                 state.GAMESTATE = state.DROPOFF_POINT
                 
         state.INPUT = None
@@ -392,6 +393,7 @@ def run_game(detector):
                             if joker_check(MrBones) and state.SCORE_SUM >= state.SCORE_TARGET / 4:
                                 trigger_jokers("bones")
                                 state.GAMESTATE = state.GameState.cash_out
+                                state.CURRENT_BLIND_MONEY = 0
                                 state.BONED = False
                             else:
                                 state.GAMESTATE = state.GameState.lose
@@ -429,24 +431,110 @@ def run_game(detector):
                             print("No discards remaining!")
                     else:
                         print("Nothing detected in play area to discard/sell.")
+
+                elif state.INPUT == "Query":
+                    if len(state.PLAYED_CARDS) > 0:
+                        print(f"\nSimulating hand {state.NUM_SIMULATIONS} times...")
+
+                        # 1. DEEP COPY the original state
+                        original_jokers = copy.deepcopy(state.JOKERS)
+                        original_consumables = copy.deepcopy(state.CONSUMABLES)
+                        actual_money = state.MONEY
+
+                        state.SIMULATION_MODE = True
+                        state.SIMULATION_SCORES.clear()
+                        
+                        # Evaluate the hand the requested number of times
+                        for _ in range(state.NUM_SIMULATIONS):
+                            # 2. DEEP COPY fresh instances for THIS specific run
+                            state.JOKERS = copy.deepcopy(original_jokers)
+                            state.CONSUMABLES = copy.deepcopy(original_consumables)
+                            state.MONEY = actual_money
+
+                            evaluate_hand(state.PLAYED_CARDS)
+                            score = state.SCORE
+                            
+                            # Infinity and overflow protection for individual scores
+                            try:
+                                f_val = float(score)
+                                if math.isinf(f_val) or f_val > 1.79e308:
+                                    score = float('inf')
+                            except (ValueError, TypeError, OverflowError):
+                                score = float('inf')
+                                
+                            state.SIMULATION_SCORES.append(score)
+                        
+                        # 3. RESTORE original state
+                        state.JOKERS = original_jokers
+                        state.CONSUMABLES = original_consumables
+                        state.MONEY = actual_money
+                            
+                        # Calculate statistics safely
+                        high_score = max(state.SIMULATION_SCORES)
+                        low_score = min(state.SIMULATION_SCORES)
+                        
+                        valid_scores = [s for s in state.SIMULATION_SCORES if not math.isinf(s)]
+                        
+                        if valid_scores:
+                            try:
+                                avg_score = sum(valid_scores) / len(state.SIMULATION_SCORES)
+                            except OverflowError:
+                                avg_score = float('inf')
+                        else:
+                            avg_score = float('inf')
+                        
+                        # Print results
+                        print("--- SIMULATION RESULTS ---")
+                        print(f"Highest Score: {format_balatro_number(high_score)}")
+                        print(f"Average Score: {format_balatro_number(avg_score)}")
+                        print(f"Lowest Score:  {format_balatro_number(low_score)}")
+                        print("--------------------------\n")
+                        
+                        state.SIMULATION_MODE = False
+    
+                    else:
+                        print("Nothing detected in play area to simulate.")
                         
                 state.INPUT = None
 
             # --- CASH OUT PHASE ---
             if state.GAMESTATE == state.GameState.cash_out:
-                # Calculate Money First
+                print(f"\n--- CASH OUT ---")
+                                    
                 state.MONEY_GAIN = 0
+                # Blind Reward
                 if state.CURRENT_BLIND_MONEY > 0 and state.SCORE_SUM >= state.SCORE_TARGET:
-                    state.MONEY_GAIN += state.CURRENT_BLIND_MONEY
+                    print(f"Blind Reward: ", end="")
+                    for cash in range(state.CURRENT_BLIND_MONEY):
+                        state.MONEY_GAIN += 1
+                        print("$", end="")
+                # Unused Hands
                 if state.HANDS > 0:
-                    state.MONEY_GAIN += state.HANDS
+                    print(f"\n{state.HANDS} Remaining Hands ($1 each): ", end="")
+                    for cash in range(state.HANDS):
+                        state.MONEY_GAIN += 1
+                        print("$", end="")
+                # Joker Related
+                trigger_jokers("cash_out")
+                # Investment Tag
                 if state.CURRENT_BLIND == "boss":
                     for tag in state.SKIP_TAGS[:]:
                         if tag.name == "Investment Tag":
-                            state.MONEY_GAIN += 25
                             state.SKIP_TAGS.remove(tag)
                             tag.trigger()
+                # Interest
+                interest_cap = state.MAX_INTEREST * 2 if joker_check(ToTheMoon) else state.MAX_INTEREST
+                interest = min(state.MONEY // 5, interest_cap)
+                if interest > 0:
+                    print("\n2" + f" interest per $5 ({interest_cap} max): " if joker_check(ToTheMoon) else "\n1" + f" interest per $5 ({interest_cap} max): ", end="")
+                    for cash in range(interest):
+                        state.MONEY_GAIN += 1
+                        print("$", end="")
 
+                state.MONEY += state.MONEY_GAIN
+
+                print(f"\n\nEarned: ${state.MONEY_GAIN} | Total Money: ${state.MONEY}")
+                print("Press PLAY to continue, or DISCARD to sell items on the board.")
 
                 # --- INCREMENT BLIND / ANTE ---
                 if state.GAMESTATE != state.GameState.lose:
@@ -463,16 +551,6 @@ def run_game(detector):
                         state.REROLLED_BOSS = False
                         select_boss_blind()
                         select_skip_tags()
-                                    
-                interest_cap = state.MAX_INTEREST * 2 if joker_check(ToTheMoon) else state.MAX_INTEREST
-                interest = min(state.MONEY // 5, interest_cap)
-                state.MONEY_GAIN += interest
-                
-                trigger_jokers("cash_out")
-                state.MONEY += state.MONEY_GAIN
-                print(f"\n--- CASH OUT ---")
-                print(f"Earned: ${state.MONEY_GAIN} | Total Money: ${state.MONEY}")
-                print("Press PLAY to continue, or DISCARD to sell items on the board.")
                 
                 cash_out_done = False
                 while not cash_out_done:
@@ -523,7 +601,7 @@ def run_game(detector):
                         
                     print()
                     print("PLAY: Leave shop (or buy/use items in play area).")
-                    print(f"DISCARD: Reroll for ${state.REROLL_COST} (or sell items in play area).")
+                    print(f"DISCARD: Reroll for ${state.REROLL_COST} (or sell items in play area)." if state.FREE_REROLLS == 0 else f"DISCARD: Reroll for free (or sell items in play area).")
                     state.INPUT = get_button_press()
                     if not state.INPUT: continue
                     scan_and_sync_board(detector)
@@ -548,7 +626,7 @@ def run_game(detector):
                                 continue
 
                             discounted_price = int(voucher.buy_price * discount_multiplier)
-                            if state.MONEY >= discounted_price:
+                            if state.MONEY >= discounted_price or (state.MONEY - discounted_price >= -20 and joker_check(CreditCard)):
                                 state.MONEY -= discounted_price
                                 state.VOUCHERS.append(voucher)
                                 state.VOUCHERS.append(voucher)
@@ -585,7 +663,7 @@ def run_game(detector):
                         for booster in list(state.PLAYED_BOOSTER_PACKS):
                             
                             discounted_price = int(booster.buy_price * discount_multiplier)
-                            if state.MONEY >= discounted_price:
+                            if state.MONEY >= discounted_price or (state.MONEY - discounted_price >= -20 and joker_check(CreditCard)):
 
                                 state.MONEY -= discounted_price
 
@@ -648,7 +726,7 @@ def run_game(detector):
                                         )
                                     else:
                                         discounted_price = int(c.buy_price * discount_multiplier)
-                                        if state.MONEY >= discounted_price:
+                                        if state.MONEY >= discounted_price or (state.MONEY - discounted_price >= -20 and joker_check(CreditCard)):
                                             state.MONEY -= discounted_price
                                             state.CONSUMABLES.append(c)
                                             state.PREV_HELD_CONSUMABLES.append(c)
@@ -691,17 +769,19 @@ def run_game(detector):
                                     elif not is_held:
                                         
                                         discounted_price = int(j.buy_price * discount_multiplier)
-                                        if state.MONEY >= discounted_price:
+                                        if state.MONEY >= discounted_price or (state.MONEY - discounted_price >= -20 and joker_check(CreditCard)):
 
                                             state.MONEY -= discounted_price
 
                                             state.JOKERS.append(j)
+                                            state.FILLED_JOKER_SLOTS += 1
                                             state.PREV_HELD_JOKERS.append(j)
                                             # Find and remove by name
                                             for s in state.SHOP_SLOTS:
                                                 if s.name == j.name:
                                                     state.SHOP_SLOTS.remove(s)
                                                     break
+                                            trigger_jokers("on_joker_buy")
                                             print(
                                                 f"Bought Joker '{j.name}' "
                                                 f"for ${discounted_price}! "
@@ -723,7 +803,12 @@ def run_game(detector):
                         if state.PLAYED_CONSUMABLES or state.PLAYED_JOKERS:
                             sell_items_in_play_area()
                         else:
-                            if state.MONEY >= state.REROLL_COST:
+                            if state.FREE_REROLLS > 0:
+                                print(f"Rerolling shop for free...")
+                                state.FREE_REROLLS -= 1
+                                reroll()
+                                discount_multiplier = 1 - getattr(state, 'DISCOUNT', 0.0)
+                            elif state.MONEY >= state.REROLL_COST or (state.MONEY - state.REROLL_COST >= -20 and joker_check(CreditCard)):
                                 state.MONEY -= state.REROLL_COST
                                 print(f"Rerolling shop for ${state.REROLL_COST}...")
                                 state.REROLL_COST += 1

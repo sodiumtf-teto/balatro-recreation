@@ -57,7 +57,7 @@ class BoosterPack:
         return cards
 
     def _generate_joker(self, excluded_types=None):
-        from game.jokers import ARUCO_TO_JOKER, joker_check, Showman
+        from game.jokers import ARUCO_TO_JOKER, joker_check, Showman, is_joker_generation_allowed
 
         generated_weight = random.randint(0, 99)
 
@@ -72,6 +72,7 @@ class BoosterPack:
             joker_class
             for joker_class in ARUCO_TO_JOKER.values()
             if joker_class().rarity == target_rarity
+            and is_joker_generation_allowed(joker_class)
         ]
 
         allow_duplicates = joker_check(Showman)
@@ -92,7 +93,11 @@ class BoosterPack:
 
         # If no Jokers remain at the target rarity, fall back to any rarity.
         if not valid_jokers:
-            valid_jokers = list(ARUCO_TO_JOKER.values())
+            valid_jokers = [
+                joker_class
+                for joker_class in ARUCO_TO_JOKER.values()
+                if is_joker_generation_allowed(joker_class)
+            ]
 
             if not allow_duplicates:
                 existing_types = {
@@ -114,9 +119,32 @@ class BoosterPack:
         return random.choice(valid_jokers)()
 
     def _generate_consumable(self, aruco_range, excluded_types=None):
-        from game.consumables import ARUCO_TO_CONSUMABLE
+        from game.consumables import ARUCO_TO_CONSUMABLE, TheSoul, BlackHole
         from game.jokers import joker_check, Showman
         from game.vouchers import voucher_check, OmenGlobe, Telescope
+
+        allow_duplicates = joker_check(Showman)
+        existing_types = {
+            type(consumable)
+            for consumable in state.CONSUMABLES
+        }
+        if excluded_types:
+            existing_types.update(excluded_types)
+
+        # Determine if The Soul or Black Hole replace the generated card
+        soul_rolled = (self.pack_type in ("Arcana", "Spectral")) and (random.random() < 0.003)
+        black_hole_rolled = (self.pack_type in ("Celestial", "Spectral")) and (random.random() < 0.003)
+
+        if soul_rolled and black_hole_rolled:
+            black_hole_rolled = False  # The Soul overrides Black Hole
+
+        if soul_rolled:
+            if allow_duplicates or TheSoul not in existing_types:
+                return TheSoul()
+
+        if black_hole_rolled:
+            if allow_duplicates or BlackHole not in existing_types:
+                return BlackHole()
 
         if self.pack_type == "Arcana" and voucher_check(OmenGlobe) and random.random() < 0.2:
             aruco_range = (233, 237)
@@ -148,16 +176,7 @@ class BoosterPack:
             )
         ]
 
-        allow_duplicates = joker_check(Showman)
-
         if not allow_duplicates:
-            existing_types = {
-                type(consumable)
-                for consumable in state.CONSUMABLES
-            }
-            if excluded_types:
-                existing_types.update(excluded_types)
-
             valid_classes = [
                 consumable_class
                 for consumable_class in valid_classes
@@ -312,7 +331,7 @@ class CelestialPack(NormalPack):
         super().__init__(name="Celestial Pack", description="Choose 1 of 3 Planet cards", pack_type="Celestial")
 
     def generate_cards(self):
-        return self._generate_batch(self._generate_consumable, 3, aruco_range=(221, 228))
+        return self._generate_batch(self._generate_consumable, 3, aruco_range=(221, 229))
 
 
 class JumboCelestialPack(JumboPack):
@@ -320,7 +339,7 @@ class JumboCelestialPack(JumboPack):
         super().__init__(name="Jumbo Celestial Pack", description="Choose 1 of 5 Planet cards", pack_type="Celestial")
 
     def generate_cards(self):
-        return self._generate_batch(self._generate_consumable, 5, aruco_range=(221, 228))
+        return self._generate_batch(self._generate_consumable, 5, aruco_range=(221, 229))
 
 
 class MegaCelestialPack(MegaPack):
@@ -329,7 +348,7 @@ class MegaCelestialPack(MegaPack):
         self.select_amount = 2
 
     def generate_cards(self):
-        return self._generate_batch(self._generate_consumable, 5, aruco_range=(221, 228))
+        return self._generate_batch(self._generate_consumable, 5, aruco_range=(221, 229))
 
 
 # ---------------------------------------------------------------------------
@@ -341,24 +360,24 @@ class SpectralPack(NormalPack):
         super().__init__(name="Spectral Pack", description="Choose 1 of 2 Spectral cards", pack_type="Spectral")
 
     def generate_cards(self):
-        return self._generate_batch(self._generate_consumable, 2, aruco_range=(233, 237))
+        return self._generate_batch(self._generate_consumable, 2, aruco_range=(233, 235))
 
 
 class JumboSpectralPack(JumboPack):
     def __init__(self):
-        super().__init__(name="Jumbo Spectral Pack", description="Choose 1 of 4 Spectral cards", pack_type="Spectral")
+        super().__init__(name="Jumbo Spectral Pack", description="Choose 1 of 3 Spectral cards", pack_type="Spectral")
 
     def generate_cards(self):
-        return self._generate_batch(self._generate_consumable, 4, aruco_range=(233, 237))
+        return self._generate_batch(self._generate_consumable, 3, aruco_range=(233, 235))
 
 
 class MegaSpectralPack(MegaPack):
     def __init__(self):
-        super().__init__(name="Mega Spectral Pack", description="Choose up to 2 of 4 Spectral cards", pack_type="Spectral")
+        super().__init__(name="Mega Spectral Pack", description="Choose up to 2 of 3 Spectral cards", pack_type="Spectral")
         self.select_amount = 2
 
     def generate_cards(self):
-        return self._generate_batch(self._generate_consumable, 4, aruco_range=(233, 237))
+        return self._generate_batch(self._generate_consumable, 3, aruco_range=(233, 235))
 
 ARUCO_TO_BOOSTER_PACK = {
     600: ArcanaPack,

@@ -38,6 +38,7 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 // Pin constant variables
 const int PLAY_PIN = A0;
 const int DISCARD_PIN = A1;
+const int QUERY_PIN = A5;
 
 // Timing variables
 unsigned long startTime {0};
@@ -87,6 +88,10 @@ unsigned long playDebounceTime = 0;
 bool discardState = false;
 bool lastDiscardState = false;
 unsigned long discardDebounceTime = 0;
+
+bool queryState = false;
+bool lastQueryState = false;
+unsigned long queryDebounceTime = 0;
 
 const unsigned long debounceDelay = 50;
 const int buttonThreshold = 300;
@@ -184,6 +189,7 @@ void setup() {
 
   pinMode(PLAY_PIN, INPUT);
   pinMode(DISCARD_PIN, INPUT);
+  pinMode(QUERY_PIN, INPUT);
 
   startTime = millis();
 }
@@ -225,6 +231,23 @@ void loop() {
     }
   }
   lastDiscardState = currentDiscardReading;
+
+  // -------------------------
+  // QUERY BUTTON LOGIC
+  // -------------------------
+  bool currentQueryReading = (analogRead(QUERY_PIN) >= buttonThreshold);
+  if (currentQueryReading != lastQueryState) {
+    queryDebounceTime = millis();
+  }
+  if ((millis() - queryDebounceTime) > debounceDelay) {
+    if (currentQueryReading != queryState) {
+      queryState = currentQueryReading;
+      if (queryState == true) {
+        Serial.println("Query");
+      }
+    }
+  }
+  lastQueryState = currentQueryReading;
 
   // -------------------------
   // SERIAL RECEIVE LOGIC
