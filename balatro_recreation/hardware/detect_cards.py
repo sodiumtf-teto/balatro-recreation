@@ -62,14 +62,8 @@ class BoardDetector:
 
         # Region of Interest boundaries
         joker_area = img[:first_third_y, :int((width / 4) * 3)]
-
-        consumables_area = img[
-            :first_third_y,
-            int((width / 4) * 3):width
-        ]
-
+        consumables_area = img[:first_third_y,int((width / 4) * 3):width]
         play_area = img[first_third_y:second_third_y, :]
-
         held_area = img[second_third_y:, :]
 
         # Extract raw IDs

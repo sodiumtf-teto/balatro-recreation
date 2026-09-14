@@ -27,11 +27,11 @@ PREV_HELD_JOKERS = []
 INPUT = None
 
 # Game Configuration
-DECK = "white"
+DECK = "red"
 STAKE = "white"
 
 # Blind Select Variables
-ANTE = 1
+ANTE = 4
 
 CURRENT_BLIND = "small"
 CURRENT_BLIND_MONEY = 0

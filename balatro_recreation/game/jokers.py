@@ -21,7 +21,10 @@ def trigger_jokers(event):
         "after_hand_played_post_blueprint",
         "retriggers",
         "on_card_score",
-        "on_card_score_blueprint"
+        "on_card_score_blueprint",
+        "mime",
+        "discard_per_card",
+        "held_in_hand"
     ):
         reset_tilt_speed()
         

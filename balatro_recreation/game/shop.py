@@ -44,10 +44,20 @@ def generate_booster_packs(free_items=False):
     num_generated_booster_packs = 2
     from game.booster_packs import (
         BuffoonPack,
+        JumboBuffoonPack,
+        MegaBuffoonPack,
         StandardPack,
+        JumboStandardPack,
+        MegaStandardPack,
         ArcanaPack,
+        JumboArcanaPack,
+        MegaArcanaPack,
         CelestialPack,
+        JumboCelestialPack,
+        MegaCelestialPack,
         SpectralPack,
+        JumboSpectralPack,
+        MegaSpectralPack
     )
     if state.FIRST_SHOP_VISIT:
         generated = BuffoonPack()
@@ -58,18 +68,38 @@ def generate_booster_packs(free_items=False):
         num_generated_booster_packs -= 1
 
     booster_options = [
-        StandardPack,
+        #StandardPack,
+        #JumboStandardPack,
+        #MegaStandardPack,
         ArcanaPack,
+        JumboArcanaPack,
+        MegaArcanaPack,
         CelestialPack,
+        JumboCelestialPack,
+        MegaCelestialPack,
         BuffoonPack,
+        JumboBuffoonPack,
+        MegaBuffoonPack,
         SpectralPack,
+        JumboSpectralPack,
+        MegaSpectralPack
     ]
     booster_weights = [
-        state.STANDARD_PACK_WEIGHT,
+        #state.STANDARD_PACK_WEIGHT,
+        #state.STANDARD_PACK_WEIGHT*0.5,
+        #state.STANDARD_PACK_WEIGHT*0.125,
         state.ARCANA_PACK_WEIGHT,
+        state.ARCANA_PACK_WEIGHT*0.5,
+        state.ARCANA_PACK_WEIGHT*0.125,
         state.CELESTIAL_PACK_WEIGHT,
+        state.CELESTIAL_PACK_WEIGHT*0.5,
+        state.CELESTIAL_PACK_WEIGHT*0.125,
         state.BUFFOON_PACK_WEIGHT,
+        state.BUFFOON_PACK_WEIGHT*0.5,
+        state.BUFFOON_PACK_WEIGHT*0.125,
         state.SPECTRAL_PACK_WEIGHT,
+        state.SPECTRAL_PACK_WEIGHT*0.5,
+        state.SPECTRAL_PACK_WEIGHT*0.125
     ]
     
     existing_boosters = {type(b) for b in state.BOOSTER_PACK_SLOTS}
