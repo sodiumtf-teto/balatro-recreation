@@ -69,6 +69,7 @@ class Card:
 
     def trigger_discard(self):
         trigger_jokers("discard_per_card")
+        trigger_jokers("discard_per_card_blueprint")
 
 ARUCO_TO_CARD = {}
 _marker_id = 500

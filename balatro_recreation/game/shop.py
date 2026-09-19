@@ -1,6 +1,32 @@
 from game import state
 import random
 
+
+def get_shop_item(slot_collection, played_item):
+    """Return the actual shop instance matching a played/detected item.
+
+    Board scans may create fresh instances, so purchase prices must always
+    come from the instance currently occupying a shop slot.
+    """
+    for slot_item in slot_collection:
+        if slot_item is played_item:
+            return slot_item
+    for slot_item in slot_collection:
+        if type(slot_item) is type(played_item):
+            return slot_item
+    for slot_item in slot_collection:
+        if getattr(slot_item, "name", None) == getattr(played_item, "name", None):
+            return slot_item
+    return None
+
+
+def remove_shop_item(slot_collection, shop_item):
+    """Remove the purchased shop instance."""
+    if shop_item in slot_collection:
+        slot_collection.remove(shop_item)
+        return True
+    return False
+
 def initialize_shop():
     # 1. Process Shop-Modifying Skip Tags
     is_free_shop = False
@@ -42,6 +68,7 @@ def initialize_shop():
 
 def generate_booster_packs(free_items=False):
     num_generated_booster_packs = 2
+    from game.jokers import joker_check, Astronomer
     from game.booster_packs import (
         BuffoonPack,
         JumboBuffoonPack,
@@ -117,7 +144,8 @@ def generate_booster_packs(free_items=False):
         generated = booster_class()
         if free_items:
             generated.buy_price = 0
-            
+        if generated.name in {"Celestial Pack", "Jumbo Celestial Pack", "Mega Celestial Pack"} and joker_check(Astronomer):
+            generated.buy_price = 0
         state.BOOSTER_PACK_SLOTS.append(generated)
         existing_boosters.add(booster_class)
 
@@ -177,7 +205,7 @@ def reroll(free_items=False):
 
 
 def fill_new_shop_slots(free_items=False):
-    from game.jokers import ARUCO_TO_JOKER, joker_check, Showman, is_joker_generation_allowed
+    from game.jokers import ARUCO_TO_JOKER, joker_check, Showman, is_joker_generation_allowed, Astronomer
     from game.consumables import ARUCO_TO_CONSUMABLE
     from game.blinds import tag_check, RareTag, UncommonTag
     
@@ -266,7 +294,10 @@ def fill_new_shop_slots(free_items=False):
             if valid_classes:
                 planet_class = random.choice(valid_classes)
                 generated = planet_class()
+                if joker_check(Astronomer):
+                    generated.buy_price = 0
                 shop_excluded_planets.add(planet_class)
+
             else:
                 generated = None
                 

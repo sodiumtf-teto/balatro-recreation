@@ -263,6 +263,8 @@ class Pluto(Consumable):
         state.LAST_USED_CONSUMABLE = self
         self.print_trigger(f"increases High Card hand value by +{state.HAND_LEVEL_UPS["High Card"][1]} Mult and +{state.HAND_LEVEL_UPS["High Card"][0]} Chips (Currently Level {state.HAND_LEVELS["High Card"]}, {state.HAND_SCORES["High Card"][1]} Mult, {state.HAND_SCORES["High Card"][0]} Chips)")
         trigger_jokers("constellation")
+        if self.name not in state.PLANETS_USED:
+            state.PLANETS_USED.append(self.name)
 
 class Mercury(Consumable):
     def __init__(self):
@@ -275,6 +277,8 @@ class Mercury(Consumable):
         state.LAST_USED_CONSUMABLE = self
         self.print_trigger(f"increases Pair hand value by +{state.HAND_LEVEL_UPS["Pair"][1]} Mult and +{state.HAND_LEVEL_UPS["Pair"][0]} Chips (Currently Level {state.HAND_LEVELS["Pair"]}, {state.HAND_SCORES["Pair"][1]} Mult, {state.HAND_SCORES["Pair"][0]} Chips)")
         trigger_jokers("constellation")
+        if self.name not in state.PLANETS_USED:
+            state.PLANETS_USED.append(self.name)
 
 class Uranus(Consumable):
     def __init__(self):
@@ -287,6 +291,8 @@ class Uranus(Consumable):
         state.LAST_USED_CONSUMABLE = self
         self.print_trigger(f"increases Two Pair hand value by +{state.HAND_LEVEL_UPS["Two Pair"][1]} Mult and +{state.HAND_LEVEL_UPS["Two Pair"][0]} Chips (Currently Level {state.HAND_LEVELS["Two Pair"]}, {state.HAND_SCORES["Two Pair"][1]} Mult, {state.HAND_SCORES["Two Pair"][0]} Chips)")
         trigger_jokers("constellation")
+        if self.name not in state.PLANETS_USED:
+            state.PLANETS_USED.append(self.name)
 
 class Venus(Consumable):
     def __init__(self):
@@ -299,6 +305,8 @@ class Venus(Consumable):
         state.LAST_USED_CONSUMABLE = self
         self.print_trigger(f"increases Three of a Kind hand value by +{state.HAND_LEVEL_UPS["Three of a Kind"][1]} Mult and +{state.HAND_LEVEL_UPS["Three of a Kind"][0]} Chips (Currently Level {state.HAND_LEVELS["Three of a Kind"]}, {state.HAND_SCORES["Three of a Kind"][1]} Mult, {state.HAND_SCORES["Three of a Kind"][0]} Chips)")
         trigger_jokers("constellation")
+        if self.name not in state.PLANETS_USED:
+            state.PLANETS_USED.append(self.name)
 
 class Saturn(Consumable):
     def __init__(self):
@@ -311,6 +319,8 @@ class Saturn(Consumable):
         state.LAST_USED_CONSUMABLE = self
         self.print_trigger(f"increases Straight hand value by +{state.HAND_LEVEL_UPS["Straight"][1]} Mult and +{state.HAND_LEVEL_UPS["Straight"][0]} Chips (Currently Level {state.HAND_LEVELS["Straight"]}, {state.HAND_SCORES["Straight"][1]} Mult, {state.HAND_SCORES["Straight"][0]} Chips)")
         trigger_jokers("constellation")
+        if self.name not in state.PLANETS_USED:
+            state.PLANETS_USED.append(self.name)
 
 class Jupiter(Consumable):
     def __init__(self):
@@ -323,6 +333,8 @@ class Jupiter(Consumable):
         state.LAST_USED_CONSUMABLE = self
         self.print_trigger(f"increases Flush hand value by +{state.HAND_LEVEL_UPS["Flush"][1]} Mult and +{state.HAND_LEVEL_UPS["Flush"][0]} Chips (Currently Level {state.HAND_LEVELS["Flush"]}, {state.HAND_SCORES["Flush"][1]} Mult, {state.HAND_SCORES["Flush"][0]} Chips)")
         trigger_jokers("constellation")
+        if self.name not in state.PLANETS_USED:
+            state.PLANETS_USED.append(self.name)
 
 class Earth(Consumable):
     def __init__(self):
@@ -335,6 +347,8 @@ class Earth(Consumable):
         state.LAST_USED_CONSUMABLE = self
         self.print_trigger(f"increases Full House hand value by +{state.HAND_LEVEL_UPS["Full House"][1]} Mult and +{state.HAND_LEVEL_UPS["Full House"][0]} Chips (Currently Level {state.HAND_LEVELS["Full House"]}, {state.HAND_SCORES["Full House"][1]} Mult, {state.HAND_SCORES["Full House"][0]} Chips)")
         trigger_jokers("constellation")
+        if self.name not in state.PLANETS_USED:
+            state.PLANETS_USED.append(self.name)
 
 class Mars(Consumable):
     def __init__(self):
@@ -347,6 +361,8 @@ class Mars(Consumable):
         state.LAST_USED_CONSUMABLE = self
         self.print_trigger(f"increases Four of a Kind hand value by +{state.HAND_LEVEL_UPS["Four of a Kind"][1]} Mult and +{state.HAND_LEVEL_UPS["Four of a Kind"][0]} Chips (Currently Level {state.HAND_LEVELS["Four of a Kind"]}, {state.HAND_SCORES["Four of a Kind"][1]} Mult, {state.HAND_SCORES["Four of a Kind"][0]} Chips)")
         trigger_jokers("constellation")
+        if self.name not in state.PLANETS_USED:
+            state.PLANETS_USED.append(self.name)
 
 class Neptune(Consumable):
     def __init__(self):
@@ -359,6 +375,8 @@ class Neptune(Consumable):
         state.LAST_USED_CONSUMABLE = self
         self.print_trigger(f"increases Straight Flush hand value by +{state.HAND_LEVEL_UPS["Straight Flush"][1]} Mult and +{state.HAND_LEVEL_UPS["Straight Flush"][0]} Chips (Currently Level {state.HAND_LEVELS["Straight Flush"]}, {state.HAND_SCORES["Straight Flush"][1]} Mult, {state.HAND_SCORES["Straight Flush"][0]} Chips)")
         trigger_jokers("constellation")
+        if self.name not in state.PLANETS_USED:
+            state.PLANETS_USED.append(self.name)
         
 # =====================================================================
 # SPECTRALS

@@ -1,4 +1,7 @@
 from enum import IntEnum
+from game.blinds import VioletVessel, CouponTag
+import random
+from game.card import RANKS, SUITS
 
 # Game State
 class GameState(IntEnum):
@@ -31,13 +34,13 @@ DECK = "red"
 STAKE = "white"
 
 # Blind Select Variables
-ANTE = 4
+ANTE = 1
 
 CURRENT_BLIND = "small"
 CURRENT_BLIND_MONEY = 0
 SCORE_TARGET = 0
 
-GENERATED_SKIP_TAGS = []
+GENERATED_SKIP_TAGS = [CouponTag(), CouponTag()]
 BOSS_BLIND = None
 BOSS_DISABLED = False
 PLAYED_BOSS_BLINDS = []
@@ -85,7 +88,6 @@ DISCARDS = STARTING_DISCARDS
 STARTING_HAND_SIZE = 8
 HAND_SIZE = STARTING_HAND_SIZE
 
-
 HAND_TYPE = None
 IS_HAND = ["None", "None"]
 SKIP_HAND = False
@@ -127,6 +129,8 @@ RENTAL_CHANCE = 0.0
 SHOP_SLOTS = []
 VOUCHER_SLOTS = []
 BOOSTER_PACK_SLOTS = []
+
+TELESCOPE_PROCCED = False
 
 FIRST_SHOP_VISIT = True
 SHOP_VOUCHERS_ROLLED = False
@@ -170,7 +174,22 @@ NUM_SIMULATIONS = 1000
 SAVED_JOKERS = []
 SIMULATION_SCORES = []
 
+# Deck Variables
+# We will come back to the deck system as soon as epaper arrives
+
 # Miscellaneous Variables
+CASTLE_SUIT = None
+CASTLE_CHANGED = False # Castle, All Same, Picks from Deck
+ANCIENT_SUIT = None
+ANCIENT_JOKER_CHANGED = False # Ancient Joker, All Same
+REBATE_RANK = None
+REBATE_CHANGED = False # Mail in Rebate, All Same, Picks from Deck
+BOSS_BLIND_TRIGGERED = False
+STUNTMEN = 0
+TROUBADOURS = 0
+MERRY_ANDYS = 0
+DRUNKARDS = 0
+JUGGLERS = 0
 TAROTS_USED = 0
 ALLOTED_DEBT = 0
 LOWEST_RANK_HELD = None
@@ -181,6 +200,7 @@ BONED = False
 BANANA_EATEN = False
 OOPS_ALL_SIXES = 0
 SKIPPED_BLINDS = 0
+PLANETS_USED = []
 
 # Game variables
 BASE_HAND_SCORES = {

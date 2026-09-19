@@ -45,6 +45,7 @@ class BoosterPack:
 
     def _generate_batch(self, generate_func, count, *args, **kwargs):
         """Generates a batch of items while preventing duplicates within the batch."""
+        state.TELESCOPE_PROCCED = False
         cards = []
         excluded = set()
         for _ in range(count):
@@ -148,7 +149,7 @@ class BoosterPack:
 
         if self.pack_type == "Arcana" and voucher_check(OmenGlobe) and random.random() < 0.2:
             aruco_range = (233, 237)
-        elif self.pack_type == "Celestial" and voucher_check(Telescope):
+        elif self.pack_type == "Celestial" and voucher_check(Telescope) and not state.TELESCOPE_PROCCED:
             hands_by_plays = sorted(state.TIMES_PLAYED.keys(), key=lambda h: state.TIMES_PLAYED[h], reverse=True)
             most_played_hand = hands_by_plays[0] if hands_by_plays else "High Card"
             planet_map = {
@@ -166,6 +167,7 @@ class BoosterPack:
             target_aruco = planet_map.get(most_played_hand, 221)
             if target_aruco in ARUCO_TO_CONSUMABLE:
                 return ARUCO_TO_CONSUMABLE[target_aruco]()
+            state.TELESCOPE_PROCCED = True
                 
 
         valid_classes = [

@@ -1,4 +1,4 @@
-import os
+
 import requests, cv2, time, serial, math, copy
 from utils import format_balatro_number
 from game import shop, state
@@ -16,7 +16,7 @@ from game.scoring import evaluate_hand
 from game.jokers import trigger_jokers, joker_check, sync_jokers, sync_played_jokers, MrBones, ToTheMoon, CreditCard
 from game.consumables import sync_consumables, sync_played_consumables
 from game.card import sync_cards, sync_held_cards
-from game.shop import initialize_shop, reroll
+from game.shop import initialize_shop, reroll, get_shop_item, remove_shop_item
 from game.vouchers import sync_played_vouchers, voucher_check, DirectorsCut, Retcon
 from game.booster_packs import sync_played_booster_packs
 
@@ -89,22 +89,18 @@ def print_info(c, slot, price=0):
     print(f"Description: {c.description}")
 
 def sell_items_in_play_area():
-    total_sale = 0
-
     for j in state.PLAYED_JOKERS:
         sell_val = int((j.buy_price * (1 - getattr(state, 'DISCOUNT', 0.0))) / 2)
-        total_sale += max(1, sell_val)
+        print(f"Sold '{j.name}' for ${sell_val}")
+        add_money(sell_val)
+        trigger_jokers("on_sell")
+        j.perish()
 
     for c in state.PLAYED_CONSUMABLES:
         sell_val = int((c.buy_price * (1 - getattr(state, 'DISCOUNT', 0.0))) / 2)
-        total_sale += max(1, sell_val)
-
-    if total_sale > 0:
-        add_money(total_sale)
-        print(f"Sold items for ${total_sale}.")
-        print("Please remove the sold items from the play area.")
-    else:
-        print("Nothing sellable in the play area.")
+        add_money(sell_val)
+        print(f"Sold '{c.name}' for ${sell_val}")
+        trigger_jokers("on_sell")
 
 def run_booster_pack(detector):
     if state.CURRENT_PACK:
@@ -244,11 +240,9 @@ def run_game(detector):
                 print(f"{state.GENERATED_SKIP_TAGS[0].get_description()}")
                 print(f"Big Blind: {state.GENERATED_SKIP_TAGS[1].name}")
                 print(f"{state.GENERATED_SKIP_TAGS[1].get_description()}")
-                if state.CURRENT_BLIND != "boss":
-                    print(f"\n--- UPCOMING BOSS BLIND ---")
-                    print(f"Boss Blind: {state.BOSS_BLIND.name} | {state.BOSS_BLIND.description}")
-                else:
-                    print(f"Boss Blind: {state.BOSS_BLIND.name} | {state.BOSS_BLIND.description}")
+
+                print(f"\n--- UPCOMING BOSS BLIND ---")
+                print(f"Boss Blind: {state.BOSS_BLIND.name} | {state.BOSS_BLIND.description}")
 
                 print(f"\n--- {state.CURRENT_BLIND.upper()} BLIND ---")
                 if state.CURRENT_BLIND == "small":
@@ -383,6 +377,7 @@ def run_game(detector):
                             print("\n*** Blind Defeated! ***")
                             trigger_jokers("end_of_blind")
                             trigger_jokers("end_of_blind_blueprint")
+                            state.BOSS_DISABLED = False
                             state.UNUSED_DISCARDS += state.DISCARDS
                             state.GAMESTATE = state.GameState.cash_out
                         elif format_balatro_number(state.SCORE_TARGET) == "naneinf" and format_balatro_number(state.SCORE_SUM) == "naneinf":
@@ -399,7 +394,7 @@ def run_game(detector):
                             else:
                                 state.GAMESTATE = state.GameState.lose
                         else:
-                            if state.BOSS_BLIND.name in {"The Serpent", "The Wheel"} and state.CURRENT_BLIND == "boss":
+                            if state.BOSS_BLIND.name in {"The Serpent", "The Wheel"} and state.CURRENT_BLIND == "boss" and not state.BOSS_DISABLED:
                                 state.BOSS_BLIND.trigger()
                     else:
                         print("Nothing detected in play area.")
@@ -412,6 +407,7 @@ def run_game(detector):
                     elif len(state.PLAYED_CARDS) > 0:
                         if state.DISCARDS > 0:
                             state.DISCARDS -= 1
+                            trigger_jokers("discard_blueprint")
                             trigger_jokers("discard")
                             for card in state.PLAYED_CARDS:
                                 from game.jokers import Pareidolia
@@ -426,7 +422,7 @@ def run_game(detector):
                                 card.trigger_discard()
                             print("Cards Discarded!")
                             state.DISCARD_CARD_NUM = 0
-                            if state.BOSS_BLIND.name in {"The Serpent", "The Wheel"} and state.CURRENT_BLIND == "boss":
+                            if state.BOSS_BLIND.name in {"The Serpent", "The Wheel"} and state.CURRENT_BLIND == "boss" and not state.BOSS_DISABLED:
                                 state.BOSS_BLIND.trigger()
                         else:
                             print("No discards remaining!")
@@ -615,43 +611,31 @@ def run_game(detector):
                         # ================================================================
 
                         for voucher in list(state.PLAYED_VOUCHERS):
+                            shop_voucher = get_shop_item(state.VOUCHER_SLOTS, voucher)
+                            if shop_voucher is None:
+                                print(f"Cannot buy voucher '{voucher.name}': it is not in the shop.")
+                                continue
 
-                            # Don't purchase the same physical voucher repeatedly.
                             already_owned = any(
-                                type(v) is type(voucher)
+                                type(v) is type(shop_voucher)
                                 for v in state.VOUCHERS
                             )
-
                             if already_owned:
                                 print(f"Already own voucher: {voucher.name}")
                                 continue
 
-                            discounted_price = int(voucher.buy_price * discount_multiplier)
+                            discounted_price = int(shop_voucher.buy_price * discount_multiplier)
                             if state.MONEY >= discounted_price or (state.MONEY - discounted_price >= -20 and joker_check(CreditCard)):
                                 state.MONEY -= discounted_price
-                                state.VOUCHERS.append(voucher)
-                                state.VOUCHERS.append(voucher)
-                                for v in state.VOUCHER_SLOTS:
-                                    if v.name == voucher.name:
-                                        state.VOUCHER_SLOTS.remove(v)
-                                        break
-                                print(
-                                    f"Bought Voucher '{voucher.name}' "
-                                    f"for ${discounted_price}!"
-                                )
-
-                                voucher.trigger()
-
-                                print(
-                                    f"Remaining Money: ${state.MONEY}"
-                                )
-
+                                state.VOUCHERS.append(shop_voucher)
+                                remove_shop_item(state.VOUCHER_SLOTS, shop_voucher)
+                                print(f"Bought Voucher '{shop_voucher.name}' for ${discounted_price}!")
+                                shop_voucher.trigger()
+                                print(f"Remaining Money: ${state.MONEY}")
                             else:
                                 print(
-                                    f"Not enough money for voucher "
-                                    f"{voucher.name}! "
-                                    f"Cost: ${discounted_price}, "
-                                    f"Money: ${state.MONEY}"
+                                    f"Not enough money for voucher {shop_voucher.name}! "
+                                    f"Cost: ${discounted_price}, Money: ${state.MONEY}"
                                 )
 
                         # ================================================================
@@ -662,39 +646,26 @@ def run_game(detector):
                         state.CURRENT_PACK = None
 
                         for booster in list(state.PLAYED_BOOSTER_PACKS):
-                            
-                            discounted_price = int(booster.buy_price * discount_multiplier)
+                            shop_booster = get_shop_item(state.BOOSTER_PACK_SLOTS, booster)
+                            if shop_booster is None:
+                                print(f"Cannot buy booster '{booster.name}': it is not in the shop.")
+                                continue
+
+                            discounted_price = int(shop_booster.buy_price * discount_multiplier)
                             if state.MONEY >= discounted_price or (state.MONEY - discounted_price >= -20 and joker_check(CreditCard)):
-
                                 state.MONEY -= discounted_price
-
-                                print(
-                                    f"Bought Booster Pack '{booster.name}' "
-                                    f"for ${discounted_price}!"
-                                )
-
-                                booster.trigger()
-
-                                print(
-                                    f"Remaining Money: ${state.MONEY}"
-                                )
+                                print(f"Bought Booster Pack '{shop_booster.name}' for ${discounted_price}!")
+                                shop_booster.trigger()
+                                print(f"Remaining Money: ${state.MONEY}")
 
                                 booster_opened = True
-                                state.CURRENT_PACK = booster
-
-                                # Find and remove by name
-                                for b in state.BOOSTER_PACK_SLOTS:
-                                    if b.name == booster.name:
-                                        state.BOOSTER_PACK_SLOTS.remove(b)
-                                        break
+                                state.CURRENT_PACK = shop_booster
+                                remove_shop_item(state.BOOSTER_PACK_SLOTS, shop_booster)
                                 break
-
                             else:
                                 print(
-                                    f"Not enough money for booster "
-                                    f"{booster.name}! "
-                                    f"Cost: ${discounted_price}, "
-                                    f"Money: ${state.MONEY}"
+                                    f"Not enough money for booster {shop_booster.name}! "
+                                    f"Cost: ${discounted_price}, Money: ${state.MONEY}"
                                 )
 
                         # ================================================================
@@ -711,47 +682,39 @@ def run_game(detector):
                                             for p in state.PREV_HELD_CONSUMABLES
                                         )
                                     )
+
                                     if state.FILLED_CONSUMABLE_SLOTS >= state.MAX_CONSUMABLE_SLOTS:
-                                        print(
-                                            f"Cannot buy {c.name}: "
-                                            "No consumable slots available."
-                                        )
+                                        print(f"Cannot buy {c.name}: No consumable slots available.")
                                     elif is_held:
                                         print(f"Using held consumable: {c.name}")
                                         c.trigger()
                                         if c in state.CONSUMABLES:
                                             state.CONSUMABLES.remove(c)
-                                        print(
-                                            "Consumable used! "
-                                            "Please remove it from the play area."
-                                        )
+                                        print("Consumable used! Please remove it from the play area.")
                                     else:
-                                        discounted_price = int(c.buy_price * discount_multiplier)
+                                        shop_consumable = get_shop_item(state.SHOP_SLOTS, c)
+                                        if shop_consumable is None:
+                                            print(f"Cannot buy consumable '{c.name}': it is not in the shop.")
+                                            continue
+
+                                        discounted_price = int(shop_consumable.buy_price * discount_multiplier)
                                         if state.MONEY >= discounted_price or (state.MONEY - discounted_price >= -20 and joker_check(CreditCard)):
                                             state.MONEY -= discounted_price
-                                            state.CONSUMABLES.append(c)
-                                            state.PREV_HELD_CONSUMABLES.append(c)
-                                            
-                                            # Find and remove by name
-                                            for s in state.SHOP_SLOTS:
-                                                if s.name == c.name:
-                                                    state.SHOP_SLOTS.remove(s)
-                                                    break
+                                            state.CONSUMABLES.append(shop_consumable)
+                                            state.PREV_HELD_CONSUMABLES.append(shop_consumable)
+                                            remove_shop_item(state.SHOP_SLOTS, shop_consumable)
                                             print(
-                                                f"Bought consumable '{c.name}' "
-                                                f"for ${discounted_price}! "
-                                                f"Remaining Money: ${state.MONEY}"
+                                                f"Bought consumable '{shop_consumable.name}' "
+                                                f"for ${discounted_price}! Remaining Money: ${state.MONEY}"
                                             )
                                         else:
                                             print(
-                                                f"Not enough money for {c.name}! "
-                                                f"Cost: ${discounted_price}, "
-                                                f"Money: ${state.MONEY}"
+                                                f"Not enough money for {shop_consumable.name}! "
+                                                f"Cost: ${discounted_price}, Money: ${state.MONEY}"
                                             )
 
                                 # Handle Jokers
                                 for j in list(state.PLAYED_JOKERS):
-
                                     is_held = (
                                         j in state.PREV_HELD_JOKERS
                                         or any(
@@ -761,41 +724,52 @@ def run_game(detector):
                                     )
 
                                     if state.FILLED_JOKER_SLOTS >= state.MAX_JOKER_SLOTS:
-
-                                        print(
-                                            f"Cannot buy {j.name}: "
-                                            "No joker slots available."
-                                        )
-
+                                        print(f"Cannot buy {j.name}: No joker slots available.")
                                     elif not is_held:
-                                        
-                                        discounted_price = int(j.buy_price * discount_multiplier)
+                                        shop_joker = get_shop_item(state.SHOP_SLOTS, j)
+                                        if shop_joker is None:
+                                            print(f"Cannot buy joker '{j.name}': it is not in the shop.")
+                                            continue
+
+                                        discounted_price = int(shop_joker.buy_price * discount_multiplier)
                                         if state.MONEY >= discounted_price or (state.MONEY - discounted_price >= -20 and joker_check(CreditCard)):
-
                                             state.MONEY -= discounted_price
-
-                                            state.JOKERS.append(j)
+                                            state.JOKERS.append(shop_joker)
                                             state.FILLED_JOKER_SLOTS += 1
-                                            state.PREV_HELD_JOKERS.append(j)
-                                            # Find and remove by name
-                                            for s in state.SHOP_SLOTS:
-                                                if s.name == j.name:
-                                                    state.SHOP_SLOTS.remove(s)
-                                                    break
+                                            state.PREV_HELD_JOKERS.append(shop_joker)
+                                            remove_shop_item(state.SHOP_SLOTS, shop_joker)
                                             trigger_jokers("on_joker_buy")
                                             print(
-                                                f"Bought Joker '{j.name}' "
-                                                f"for ${discounted_price}! "
-                                                f"Remaining Money: ${state.MONEY}"
+                                                f"Bought Joker '{shop_joker.name}' "
+                                                f"for ${discounted_price}! Remaining Money: ${state.MONEY}"
                                             )
-
                                         else:
-
                                             print(
-                                                f"Not enough money for {j.name}! "
-                                                f"Cost: ${discounted_price}, "
-                                                f"Money: ${state.MONEY}"
+                                                f"Not enough money for {shop_joker.name}! "
+                                                f"Cost: ${discounted_price}, Money: ${state.MONEY}"
                                             )
+
+                                # Handle regular cards sold from the shop.
+                                for card in list(state.PLAYED_CARDS):
+                                    shop_card = get_shop_item(state.SHOP_SLOTS, card)
+                                    if shop_card is None:
+                                        continue
+
+                                    discounted_price = int(shop_card.buy_price * discount_multiplier)
+                                    if state.MONEY >= discounted_price or (state.MONEY - discounted_price >= -20 and joker_check(CreditCard)):
+                                        state.MONEY -= discounted_price
+                                        if hasattr(state, "DECK") and hasattr(state.DECK, "cards"):
+                                            state.DECK.cards.append(shop_card)
+                                        remove_shop_item(state.SHOP_SLOTS, shop_card)
+                                        print(
+                                            f"Bought card '{shop_card.name}' "
+                                            f"for ${discounted_price}! Remaining Money: ${state.MONEY}"
+                                        )
+                                    else:
+                                        print(
+                                            f"Not enough money for {shop_card.name}! "
+                                            f"Cost: ${discounted_price}, Money: ${state.MONEY}"
+                                        )
 
                         if not state.PLAYED_CONSUMABLES and not state.PLAYED_JOKERS and not state.PLAYED_VOUCHERS and not state.PLAYED_BOOSTER_PACKS:
                             print("Leaving the shop...")
@@ -808,13 +782,14 @@ def run_game(detector):
                                 print(f"Rerolling shop for free...")
                                 state.FREE_REROLLS -= 1
                                 reroll()
+                                trigger_jokers("reroll")
                                 discount_multiplier = 1 - getattr(state, 'DISCOUNT', 0.0)
                             elif state.MONEY >= state.REROLL_COST or (state.MONEY - state.REROLL_COST >= -20 and joker_check(CreditCard)):
                                 state.MONEY -= state.REROLL_COST
                                 print(f"Rerolling shop for ${state.REROLL_COST}...")
                                 state.REROLL_COST += 1
                                 reroll()
-                                
+                                trigger_jokers("reroll")
                                 discount_multiplier = 1 - getattr(state, 'DISCOUNT', 0.0)
             
                             else:

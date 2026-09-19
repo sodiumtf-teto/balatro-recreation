@@ -25,7 +25,7 @@ def is_suit(card, target_suit):
 
     return False
 
-def evaluate_hand(hand):
+def hand_type(hand):
     if not hand:
         state.HAND_TYPE = "None"
         state.SCORE = 0
@@ -148,7 +148,10 @@ def evaluate_hand(hand):
             highest_rank = unique_ranks_high_sorted[-1]
             state.SCORED_CARDS = [next(card for card in hand if card.rank == highest_rank)]
 
-    if state.BOSS_BLIND.name in {"Verdant Leaf", "The Tooth", "The Mouth", "The Eye", "The Psychic", "The Arm", "The Ox"} and state.CURRENT_BLIND == "boss":
+def evaluate_hand(hand):
+    hand_type(state.PLAYED_CARDS)
+
+    if state.BOSS_BLIND.name in {"Verdant Leaf", "The Tooth", "The Mouth", "The Eye", "The Psychic", "The Arm", "The Ox"} and state.CURRENT_BLIND == "boss" and not state.BOSS_DISABLED:
         state.BOSS_BLIND.trigger()
 
     trigger_jokers("before_hand_played")
@@ -160,7 +163,8 @@ def evaluate_hand(hand):
     if not state.SKIP_HAND:
         state.CHIPS, state.MULT = state.HAND_SCORES[state.HAND_TYPE]
 
-        if state.BOSS_BLIND.name == "The Flint" and state.CURRENT_BLIND == "boss":
+        if state.BOSS_BLIND.name == "The Flint" and state.CURRENT_BLIND == "boss" and not state.BOSS_DISABLED:
+            state.BOSS_BLIND_TRIGGERED = True
             state.CHIPS //= 2
             state.MULT //= 2
 
@@ -179,7 +183,7 @@ def evaluate_hand(hand):
                 state.IS_FACE = True
             else:
                 state.IS_FACE = False
-            if state.BOSS_BLIND.name in {"The Plant", "The Head", "The Window", "The Goad", "The Club"} and state.CURRENT_BLIND == "boss":
+            if state.BOSS_BLIND.name in {"The Plant", "The Head", "The Window", "The Goad", "The Club"} and state.CURRENT_BLIND == "boss" and not state.BOSS_DISABLED:
                 state.BOSS_BLIND.trigger()
             if card not in state.DEBUFFED_CARDS:
                 card.trigger()
@@ -205,7 +209,7 @@ def evaluate_hand(hand):
         trigger_jokers("after_hand_played_post")
         trigger_jokers("after_hand_played_post_blueprint")
 
-        if state.BOSS_BLIND.name in {"Crimson Heart", "Cerulean Bell", "The Fish", "The Hook"} and state.CURRENT_BLIND == "boss":
+        if state.BOSS_BLIND.name in {"Crimson Heart", "Cerulean Bell", "The Fish", "The Hook"} and state.CURRENT_BLIND == "boss" and not state.BOSS_DISABLED:
             state.BOSS_BLIND.trigger()
 
         if voucher_check(Observatory):
@@ -234,6 +238,7 @@ def evaluate_hand(hand):
         state.SCORE = state.CHIPS * state.MULT
     else:
         state.SCORE = 0
+        trigger_jokers("matador")
         state.SKIP_HAND = False
 
     state.IS_HAND.clear()
@@ -241,3 +246,4 @@ def evaluate_hand(hand):
     state.LOWEST_RANK_HELD = None
     state.PLAYED_CARD_ORDER = 0
     state.HELD_CARD_ORDER = 0
+    state.BOSS_BLIND_TRIGGERED = False

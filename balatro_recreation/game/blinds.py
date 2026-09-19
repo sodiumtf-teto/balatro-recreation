@@ -95,6 +95,7 @@ class TheOx(BossBlind):
         if state.HAND_TYPE == self.most_played:
             add_money(-state.MONEY)
             self.print_trigger("sets money to $0")
+            state.BOSS_BLIND_TRIGGERED = True
 
 class TheHouse(BossBlind):
     def __init__(self):
@@ -129,6 +130,7 @@ class TheArm(BossBlind):
             state.HAND_SCORES[state.HAND_TYPE] = (current_chips - add_chips, current_mult - add_mult)
             state.HAND_LEVELS[state.HAND_TYPE] -= 1
             self.print_trigger(f"decreases {state.HAND_TYPE} hand level to {state.HAND_LEVELS[state.HAND_TYPE]}")
+            state.BOSS_BLIND_TRIGGERED = True
 
 class TheClub(BossBlind):
     def __init__(self):
@@ -138,6 +140,7 @@ class TheClub(BossBlind):
         if is_suit(state.CARD_SUIT, "Clubs"):
             state.DEBUFFED_CARDS.append(state.PLAYED_CARDS[state.PLAYED_CARD_ORDER - 1])
             self.print_trigger("debuffs all Club cards")
+            state.BOSS_BLIND_TRIGGERED = True
 
 class TheFish(BossBlind):
     def __init__(self):
@@ -152,6 +155,7 @@ class ThePsychic(BossBlind):
         if len(state.PLAYED_CARDS) < 5:
             state.SKIP_HAND = True
             self.print_trigger("requires playing 5 cards")
+            state.BOSS_BLIND_TRIGGERED = True
 
 class TheGoad(BossBlind):
     def __init__(self):
@@ -161,6 +165,7 @@ class TheGoad(BossBlind):
         if is_suit(state.CARD_SUIT, "Spades"):
             state.DEBUFFED_CARDS.append(state.PLAYED_CARDS[state.PLAYED_CARD_ORDER - 1])
             self.print_trigger("debuffs all Spade cards")
+            state.BOSS_BLIND_TRIGGERED = True
 
 class TheWater(BossBlind):
     def __init__(self):
@@ -176,6 +181,7 @@ class TheWindow(BossBlind):
         if is_suit(state.CARD_SUIT, "Diamonds"):
             state.DEBUFFED_CARDS.append(state.PLAYED_CARDS[state.PLAYED_CARD_ORDER - 1])
             self.print_trigger("debuffs all Diamond cards")
+            state.BOSS_BLIND_TRIGGERED = True
 
 class TheManacle(BossBlind):
     def __init__(self):
@@ -191,6 +197,7 @@ class TheEye(BossBlind):
         if state.HAND_TYPE in self.played_hand_types:
             state.SKIP_HAND = True
             self.print_trigger("forbids repeat hand types")
+            state.BOSS_BLIND_TRIGGERED = True
         elif state.HAND_TYPE not in self.played_hand_types:
             self.played_hand_types.append(state.HAND_TYPE)
 
@@ -204,6 +211,7 @@ class TheMouth(BossBlind):
         elif state.HAND_TYPE != self.set_hand:
             state.SKIP_HAND = True
             self.print_trigger("restricts to only one hand type")
+            state.BOSS_BLIND_TRIGGERED = True
 
 class ThePlant(BossBlind):
     def __init__(self):
@@ -212,6 +220,7 @@ class ThePlant(BossBlind):
         if state.IS_FACE:
             state.DEBUFFED_CARDS.append(state.PLAYED_CARDS[state.PLAYED_CARD_ORDER - 1])
             self.print_trigger("debuffs all face cards")
+            state.BOSS_BLIND_TRIGGERED = True
 
 class TheSerpent(BossBlind):
     def __init__(self):
@@ -244,6 +253,7 @@ class TheHead(BossBlind):
         if is_suit(state.CARD_SUIT, "Hearts"):
             state.DEBUFFED_CARDS.append(state.PLAYED_CARDS[state.PLAYED_CARD_ORDER - 1])
             self.print_trigger("debuffs all Heart cards")
+            state.BOSS_BLIND_TRIGGERED = True
 
 class TheTooth(BossBlind):
     def __init__(self):
@@ -282,6 +292,7 @@ class VerdantLeaf(BossBlind):
         if not state.JOKER_SOLD:
             state.DEBUFFED_CARDS = list(state.PLAYED_CARDS) + list(state.HELD_CARDS)
             self.print_trigger("debuffs all cards until a Joker is sold")
+            state.BOSS_BLIND_TRIGGERED = True
 
 class VioletVessel(BossBlind):
     def __init__(self):
