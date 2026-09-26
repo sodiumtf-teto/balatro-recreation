@@ -292,4 +292,4 @@ TIMES_PLAYED = {
 }
 
 def reset_game():
-    pass
+    return
