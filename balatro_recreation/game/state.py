@@ -1,5 +1,4 @@
 from enum import IntEnum
-from game.blinds import VioletVessel, CouponTag
 import random
 from game.card import RANKS, SUITS
 
@@ -29,8 +28,12 @@ PREV_HELD_JOKERS = []
 # Input Variables
 INPUT = None
 
-# Game Configuration
+# Deck Variables
+DECK_CARDS = []
+OUT_OF_PLAY_CARDS = []
 DECK = "red"
+
+# Stake Variables
 STAKE = "white"
 
 # Blind Select Variables
@@ -40,7 +43,7 @@ CURRENT_BLIND = "small"
 CURRENT_BLIND_MONEY = 0
 SCORE_TARGET = 0
 
-GENERATED_SKIP_TAGS = [CouponTag(), CouponTag()]
+GENERATED_SKIP_TAGS = []
 BOSS_BLIND = None
 BOSS_DISABLED = False
 PLAYED_BOSS_BLINDS = []
@@ -173,9 +176,6 @@ SIMULATION_MODE = False
 NUM_SIMULATIONS = 1000
 SAVED_JOKERS = []
 SIMULATION_SCORES = []
-
-# Deck Variables
-# We will come back to the deck system as soon as epaper arrives
 
 # Miscellaneous Variables
 CASTLE_SUIT = None

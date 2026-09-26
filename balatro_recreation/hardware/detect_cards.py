@@ -85,7 +85,7 @@ class BoardDetector:
         for aruco_id in play_area_raw_ids:
 
             # Playing cards
-            if 500 <= aruco_id <= 551:
+            if 500 <= aruco_id <= 551 or 700 <= aruco_id <= 800:
                 play_area_cards.append(aruco_id)
 
             # Booster packs

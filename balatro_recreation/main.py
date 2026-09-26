@@ -1,6 +1,6 @@
 
 import requests, cv2, time, serial, math, copy
-from utils import format_balatro_number
+from utils import format_balatro_number, draw_card
 from game import shop, state
 import numpy as np
 from enum import IntEnum
@@ -9,6 +9,7 @@ from enum import IntEnum
 from hardware.detect_cards import BoardDetector
 from hardware.camera import capture_image
 from hardware.arduino_serial import get_button_press, activate_scored_card, init_serial, add_money
+from hardware.esp32_serial import update_epaper_display
 from game.decks import next_deck, apply_deck
 from game.stakes import next_stake, apply_stake
 from game.blinds import calculate_blinds, select_boss_blind, select_skip_tags, tag_check, InvestmentTag, BossTag, BuffoonTag, CharmTag, EtherealTag, MeteorTag, StandardTag, EconomyTag, GarbageTag, HandyTag, SpeedTag, OrbitalTag, TopUpTag, DoubleTag, CouponTag, TheWheel, TheOx
@@ -163,8 +164,8 @@ def run_booster_pack(detector):
                         
                     # Handle Standard Card Selection (Standard Packs)
                     elif item in state.PLAYED_CARDS:
-                        if hasattr(state, 'DECK') and hasattr(state.DECK, 'cards'):
-                            state.DECK.cards.append(item)
+                        if hasattr(state, 'deck') and hasattr(state.deck, 'cards'):
+                            state.DECK_CARDS.append(item)
                         print(f"Added {item.name} to your deck!")
                         selections_made += 1
 
@@ -218,6 +219,20 @@ def run_game(detector):
         state.INPUT = None
         apply_stake()
         apply_deck()
+
+        # ==========================================
+        # E-PAPER QUICK TEST
+        # ==========================================
+        if state.DECK_CARDS:
+            for c in range(len(state.DECK_CARDS)):
+                print(f"Testing E-Paper: Drawing {state.DECK_CARDS[c].name} to Epaper...")
+                # 1. Generate the 1-bit composite image with ArUco 700
+                draw_card(state.DECK_CARDS[c], aruco_id=700+c)
+                
+                # 2. Send it via serial to the ESP32
+                update_epaper_display("epaper_image.png")
+        # ==========================================
+
         calculate_blinds()
         select_boss_blind()
         select_skip_tags()
@@ -377,6 +392,8 @@ def run_game(detector):
                             print("\n*** Blind Defeated! ***")
                             trigger_jokers("end_of_blind")
                             trigger_jokers("end_of_blind_blueprint")
+                            for card in state.HELD_CARDS:
+                                card.trigger_held_end_of_blind()
                             state.BOSS_DISABLED = False
                             state.UNUSED_DISCARDS += state.DISCARDS
                             state.GAMESTATE = state.GameState.cash_out
@@ -759,7 +776,7 @@ def run_game(detector):
                                     if state.MONEY >= discounted_price or (state.MONEY - discounted_price >= -20 and joker_check(CreditCard)):
                                         state.MONEY -= discounted_price
                                         if hasattr(state, "DECK") and hasattr(state.DECK, "cards"):
-                                            state.DECK.cards.append(shop_card)
+                                            state.DECK_CARDS.append(shop_card)
                                         remove_shop_item(state.SHOP_SLOTS, shop_card)
                                         print(
                                             f"Bought card '{shop_card.name}' "
@@ -800,8 +817,6 @@ def run_game(detector):
                         run_booster_pack(detector)
                         print("Returning to shop...")
 
-
-        # If we exited the loop, the player lost.
         print("\n=== GAME OVER ===")
         state.reset_game()
 

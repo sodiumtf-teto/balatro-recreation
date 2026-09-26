@@ -1,4 +1,5 @@
 from . import state
+from game.card import Card
 
 def next_deck():
     if state.DECK == "red":
@@ -16,3 +17,5 @@ def apply_deck():
         state.STARTING_HANDS += 1
     elif state.DECK == "yellow":
         state.STARTING_MONEY += 10
+
+    state.DECK_CARDS = [Card("8", "Hearts", "Gold", None, "Purple")]

@@ -4,6 +4,7 @@ from game import state
 from game.jokers import Splash, FourFingers, Shortcut, Pareidolia, SmearedJoker, trigger_jokers, joker_check
 from game.vouchers import voucher_check, Observatory
 from hardware.arduino_serial import activate_scored_card, start_scoring_phase, add_mult, add_chips, mult_mult
+import random
 
 RANK_ORDER_HIGH = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
 RANK_ORDER_LOW = {'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13}
@@ -236,6 +237,13 @@ def evaluate_hand(hand):
                             print(f"Observatory triggered! {target_planet} gave x1.5 Mult.")
 
         state.SCORE = state.CHIPS * state.MULT
+
+        # Go through glass cards
+        for card in state.SCORED_CARDS:
+            if card.enhancement and card.enhancement.lower() == "glass" and random.randint(0, 3) + 2**state.OOPS_ALL_SIXES > 3:
+                card.print_trigger("breaks!")
+                state.DECK_CARDS.remove(card)
+
     else:
         state.SCORE = 0
         trigger_jokers("matador")
@@ -247,3 +255,6 @@ def evaluate_hand(hand):
     state.PLAYED_CARD_ORDER = 0
     state.HELD_CARD_ORDER = 0
     state.BOSS_BLIND_TRIGGERED = False
+
+    for card in state.DECK_CARDS:
+        print(card.name)
